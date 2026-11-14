@@ -2,6 +2,17 @@
 
 ## In progress
 
+### docs/own-pages-url
+
+- Task: change the play link in `README.md` and the Pages gotcha in `docs/README.md` from the upstream site to the fork's, https://skymiku39.github.io/jadereaper/. The user asked for this on 2026-11-15. Not linked to any issue.
+- PR: none. Not pushed.
+- Code checkpoint: 0ded95a (`docs: point the play link at the fork's pages site`), on `main` at d579ad3.
+- Fork settings changed the same day, at the user's request: GitHub Pages is on for `skymiku39/jadereaper` with the GitHub Actions source, and the `github-pages` environment allows only `main`. The `Pages` run for d579ad3 was rerun and passed; `Smoke` and `Fonts` passed too. This replaces the "Pages deploy has not been set up" remark in the `integrate/own-version` subsection.
+- Verification: documentation only; no checks were run. The deployed site answers 200 for `index.html`, `style.css`, `src/main.js`, `src/generated.js` and the wasm (69,732 bytes, the same as the local build). Not checked: playing it in a browser.
+- Left as they are, because they belong to the open choice about the upstream process files: the `pomodorozhong` mentions in `CONTRIBUTING.md`, `.github/ISSUE_TEMPLATE/` and `tools/sync-labels.sh`.
+- Next action: P-14.
+- Pending: **P-14** push this branch to `fork` and fast-forward the fork's `main` to it. Why: pushing needs approval. Blocks: the corrected link reaching the fork.
+
 ### integrate/own-version
 
 - Task: start the user's own version of the game on the fork `skymiku39/jadereaper` (remote `fork`), instead of contributing to `pomodorozhong/jadereaper` (remote `origin`). The user decided this on 2026-11-15. This branch starts from `origin/main` at a0d53d1 and adds three commits cherry-picked from earlier local branches: the game design document and roadmap steps 1 and 4 (from `docs/game-design`, the closed #6), the weapon and upgrade behaviour tests (from `test/weapon-behaviour`, the closed #13), and the content file with its id generator (from `feat/content-generator`, never pushed). Not linked to any issue.
