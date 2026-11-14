@@ -1,0 +1,14 @@
+[package]
+name = "jadereaper_gen"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Generates the shared id constants from content/game.toml"
+
+# A separate crate, not a bin in core/, so the generator still builds when the
+# core does not compile yet (for example right after adding an upgrade that
+# game.rs already uses), and so the wasm build never sees it.
+
+[[bin]]
+name = "gen"
+path = "src/main.rs"

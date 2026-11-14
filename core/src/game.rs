@@ -969,7 +969,7 @@ impl Game {
         let (tilt, hop) = if pose == 0 { (0.13, 0.0) } else { (-0.13, -3.0) };
         let c = [k.color[0], k.color[1], k.color[2], 1.0];
         let shadow = [INK[0], INK[1], INK[2], 0.2];
-        self.put(e.x, e.y, k.r * 0.95, k.r * 0.36, 0.0, P_SHADOW, 0.0, 0.0, shadow);
+        self.put(e.x, e.y, k.r * 0.95, k.r * 0.36, 0.0, P_GROUND_SHADOW, 0.0, 0.0, shadow);
         if e.kind == K_WISP {
             // Wisps hover and flap by squeezing their width.
             let hw = if pose == 0 { k.hw } else { k.hw * 0.7 };
@@ -996,7 +996,7 @@ impl Game {
         let attack = p.attack;
 
         let shadow = [INK[0], INK[1], INK[2], 0.22];
-        self.put(px, py, 20.0, 7.0, 0.0, P_SHADOW, 0.0, 0.0, shadow);
+        self.put(px, py, 20.0, 7.0, 0.0, P_GROUND_SHADOW, 0.0, 0.0, shadow);
 
         let scythe = [0.36, 0.66, 0.52, a];
         let swinging = attack > 0.0;
@@ -1005,8 +1005,8 @@ impl Game {
             self.put(px - f * 15.0, py - 46.0 + bob, 20.0 * f, 34.0, -f * 0.45 + tilt, P_SCYTHE, flash, 0.21, scythe);
         }
         let top_x = px + 26.0 * tilt.sin();
-        self.put(px, py - 26.0 + bob, 20.0 * f, 26.0, tilt, P_ROBE, flash, 0.37, [0.20, 0.42, 0.36, a]);
-        self.put(top_x + f * 2.0, py - 60.0 + bob * 1.5, 15.0 * f, 15.0, -tilt * 0.6, P_HOOD, flash, 0.53, [0.15, 0.33, 0.29, a]);
+        self.put(px, py - 26.0 + bob, 20.0 * f, 26.0, tilt, P_PLAYER_BODY, flash, 0.37, [0.20, 0.42, 0.36, a]);
+        self.put(top_x + f * 2.0, py - 60.0 + bob * 1.5, 15.0 * f, 15.0, -tilt * 0.6, P_PLAYER_HEAD, flash, 0.53, [0.15, 0.33, 0.29, a]);
         if swinging {
             let t = 1.0 - attack / 0.25;
             let ease = t * t * (3.0 - 2.0 * t);
@@ -1017,32 +1017,29 @@ impl Game {
 
     // --------------------------------------------------------------- state
 
-    /// HUD state read by the host. Layout:
-    /// 0 hp, 1 max hp, 2 xp, 3 xp needed, 4 level, 5 time, 6 kills,
-    /// 7 choosing, 8..10 offered upgrade ids (-1 for none), 11 game over,
-    /// 12 camera x, 13 camera y, 14 enemy count, 15 running,
-    /// 16..25 upgrade levels.
+    /// HUD state read by the host. The layout is the `[[state]]` list in
+    /// `content/game.toml`.
     fn write_state(&mut self) {
         let p = &self.player;
         let s = &mut self.state;
-        s[0] = p.hp;
-        s[1] = p.max_hp;
-        s[2] = p.xp;
-        s[3] = p.xp_next;
-        s[4] = p.level as f32;
-        s[5] = self.time;
-        s[6] = self.kills as f32;
-        s[7] = self.choosing as u8 as f32;
+        s[S_HP] = p.hp;
+        s[S_MAX_HP] = p.max_hp;
+        s[S_XP] = p.xp;
+        s[S_XP_NEXT] = p.xp_next;
+        s[S_LEVEL] = p.level as f32;
+        s[S_TIME] = self.time;
+        s[S_KILLS] = self.kills as f32;
+        s[S_CHOOSING] = self.choosing as u8 as f32;
         for c in 0..3 {
-            s[8 + c] = self.choices[c] as f32;
+            s[S_CHOICE0 + c] = self.choices[c] as f32;
         }
-        s[11] = self.over as u8 as f32;
-        s[12] = self.cam.0;
-        s[13] = self.cam.1;
-        s[14] = self.enemies.len() as f32;
-        s[15] = self.running as u8 as f32;
+        s[S_OVER] = self.over as u8 as f32;
+        s[S_CAM_X] = self.cam.0;
+        s[S_CAM_Y] = self.cam.1;
+        s[S_ENEMIES] = self.enemies.len() as f32;
+        s[S_RUNNING] = self.running as u8 as f32;
         for id in 0..N_UPGRADES {
-            s[16 + id] = self.up[id] as f32;
+            s[S_UPGRADE0 + id] = self.up[id] as f32;
         }
     }
 }

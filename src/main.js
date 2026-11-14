@@ -5,10 +5,8 @@ import { createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { createUI } from './ui.js';
 import { loadSave, writeSave, recordRun } from './save.js';
-import { EVENT, STATE, UPGRADES } from './data.js';
+import { EVENT, STATE, STATE_FLOATS, UPGRADES } from './data.js';
 import { pickLang, setLang, getLang, nextLang } from './i18n.js';
-
-const STATE_FLOATS = 32;
 
 async function boot() {
   const canvas = document.getElementById('game');

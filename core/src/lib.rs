@@ -5,11 +5,12 @@
 //! buffers straight out of linear memory each frame:
 //!
 //! - instances: `jr_instance_count()` x 12 floats, uploaded to the GPU as is
-//! - state: `STATE_FLOATS` floats for the HUD (layout in `Game::write_state`)
+//! - state: `STATE_FLOATS` floats for the HUD (layout in `content/game.toml`)
 //! - events: `jr_event_count()` x 4 floats `[type, x, y, value]` for sound
 
 pub mod defs;
 pub mod game;
+pub mod generated;
 
 use game::Game;
 
@@ -133,6 +134,6 @@ mod tests {
             }
         }
         assert!(game.over);
-        assert_eq!(game.state[11], 1.0);
+        assert_eq!(game.state[S_OVER], 1.0);
     }
 }

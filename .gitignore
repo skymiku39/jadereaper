@@ -1,4 +1,5 @@
 core/target/
+tools/gen/target/
 .DS_Store
 .font-cache/
 node_modules/

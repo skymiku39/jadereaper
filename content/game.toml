@@ -1,0 +1,279 @@
+# Jade Reaper content: the single source of the ids shared by the Rust core,
+# the JavaScript host and the shader.
+#
+# After editing, run ./build.sh (or only the generator:
+#   cargo run --release --manifest-path core/Cargo.toml --bin gen)
+# and commit the generated files with this one:
+#   core/src/generated.rs, src/generated.js and the block in src/shader.wgsl.
+#
+# Format: a small subset of TOML. Top-level `key = value` lines, then
+# `[[table]]` entries with `key = value` lines. Values are integers, decimals,
+# "strings", true/false, or [arrays of numbers]. `#` starts a comment.
+# Names are lowercase snake_case; the generator derives the constant names
+# from them (part `player_body` becomes `P_PLAYER_BODY` in Rust,
+# `PART_PLAYER_BODY` in the shader and stays `player_body` in JavaScript).
+
+# Ink colour (linear-ish RGB, 0..1) used by the core and the shader.
+ink = [0.17, 0.15, 0.13]
+
+# Size of the HUD state buffer in floats.
+state_floats = 32
+
+# ---------------------------------------------------------------- parts
+# Paper part ids, sent to the renderer in each instance. The name is also the
+# key for an image override in assets/parts.json. Ids must be 0..31 (the
+# shader has 32 image slots). Id 17 is free.
+
+[[part]]
+id = 0
+name = "ellipse"
+
+[[part]]
+id = 1
+name = "player_body"
+
+[[part]]
+id = 2
+name = "player_head"
+
+[[part]]
+id = 3
+name = "scythe"
+
+[[part]]
+id = 4
+name = "blot"
+
+[[part]]
+id = 5
+name = "wisp"
+
+[[part]]
+id = 6
+name = "brute"
+
+[[part]]
+id = 7
+name = "gem"
+
+[[part]]
+id = 8
+name = "slash"
+
+[[part]]
+id = 9
+name = "talisman"
+
+[[part]]
+id = 10
+name = "bead"
+
+[[part]]
+id = 11
+name = "splat"
+
+[[part]]
+id = 12
+name = "grass"
+
+[[part]]
+id = 13
+name = "stone"
+
+[[part]]
+id = 14
+name = "heart"
+
+[[part]]
+id = 15
+name = "ring"
+
+[[part]]
+id = 16
+name = "scrap"
+
+[[part]]
+id = 18
+name = "ground_shadow"
+
+# ------------------------------------------------------------- upgrades
+# Ids index the upgrade tables, so they run 0, 1, 2... without gaps.
+# `max` is the highest level. `glyph` is the brush mark on cards and HUD
+# chips. Card text is `upgrade.<id>.name` and `.desc` in src/i18n.js.
+
+[[upgrade]]
+id = 0
+name = "scythe"
+max = 6
+glyph = "鐮"
+
+[[upgrade]]
+id = 1
+name = "talisman"
+max = 6
+glyph = "符"
+
+[[upgrade]]
+id = 2
+name = "beads"
+max = 6
+glyph = "珠"
+
+[[upgrade]]
+id = 3
+name = "pulse"
+max = 6
+glyph = "波"
+
+[[upgrade]]
+id = 4
+name = "vitality"
+max = 5
+glyph = "命"
+
+[[upgrade]]
+id = 5
+name = "swift"
+max = 5
+glyph = "風"
+
+[[upgrade]]
+id = 6
+name = "lure"
+max = 5
+glyph = "引"
+
+[[upgrade]]
+id = 7
+name = "might"
+max = 5
+glyph = "力"
+
+[[upgrade]]
+id = 8
+name = "haste"
+max = 5
+glyph = "速"
+
+[[upgrade]]
+id = 9
+name = "mending"
+max = 5
+glyph = "癒"
+
+# --------------------------------------------------------------- events
+# Event types the core reports to the host (used for sound). 0 is not used.
+
+[[event]]
+id = 1
+name = "hit"
+
+[[event]]
+id = 2
+name = "kill"
+
+[[event]]
+id = 3
+name = "pickup"
+
+[[event]]
+id = 4
+name = "levelup"
+
+[[event]]
+id = 5
+name = "hurt"
+
+[[event]]
+id = 6
+name = "slash"
+
+[[event]]
+id = 7
+name = "shoot"
+
+[[event]]
+id = 8
+name = "pulse"
+
+[[event]]
+id = 9
+name = "death"
+
+[[event]]
+id = 10
+name = "heal"
+
+[[event]]
+id = 11
+name = "elite"
+
+# ---------------------------------------------------------------- state
+# Fields of the HUD state buffer written by Game::write_state. `index` is the
+# first float. A field with `len` is a run of floats; its constant gets a 0
+# suffix (`choice` becomes CHOICE0). `len` is a number or the name of a table
+# above, meaning one float per entry ("upgrade" = one per upgrade).
+
+[[state]]
+name = "hp"
+index = 0
+
+[[state]]
+name = "max_hp"
+index = 1
+
+[[state]]
+name = "xp"
+index = 2
+
+[[state]]
+name = "xp_next"
+index = 3
+
+[[state]]
+name = "level"
+index = 4
+
+[[state]]
+name = "time"
+index = 5
+
+[[state]]
+name = "kills"
+index = 6
+
+[[state]]
+name = "choosing"
+index = 7
+
+# Offered upgrade ids, -1 for none.
+[[state]]
+name = "choice"
+index = 8
+len = 3
+
+[[state]]
+name = "over"
+index = 11
+
+[[state]]
+name = "cam_x"
+index = 12
+
+[[state]]
+name = "cam_y"
+index = 13
+
+[[state]]
+name = "enemies"
+index = 14
+
+[[state]]
+name = "running"
+index = 15
+
+# Current level of each upgrade.
+[[state]]
+name = "upgrade"
+index = 16
+len = "upgrade"

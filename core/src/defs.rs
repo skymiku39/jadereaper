@@ -1,8 +1,11 @@
 //! Shared definitions: the instance format sent to the renderer, part ids,
 //! tuning tables and a tiny RNG.
 //!
-//! Part ids and upgrade ids are mirrored in `src/data.js` and `src/shader.wgsl`.
-//! If you add one here, add it there too.
+//! Part ids, upgrade ids and max levels, event ids, state indices and the ink
+//! colour come from `content/game.toml` through `crate::generated` and are
+//! re-exported here. Edit the content file, not the generated code.
+
+pub use crate::generated::*;
 
 /// One paper cutout drawn by the renderer. 12 floats, 48 bytes.
 #[repr(C)]
@@ -24,57 +27,6 @@ pub struct Inst {
 
 pub const INST_FLOATS: usize = 12;
 pub const MAX_INST: usize = 4096;
-
-// Part ids.
-pub const P_ELLIPSE: f32 = 0.0;
-pub const P_ROBE: f32 = 1.0;
-pub const P_HOOD: f32 = 2.0;
-pub const P_SCYTHE: f32 = 3.0;
-pub const P_BLOT: f32 = 4.0;
-pub const P_WISP: f32 = 5.0;
-pub const P_BRUTE: f32 = 6.0;
-pub const P_GEM: f32 = 7.0;
-pub const P_SLASH: f32 = 8.0;
-pub const P_TALISMAN: f32 = 9.0;
-pub const P_BEAD: f32 = 10.0;
-pub const P_SPLAT: f32 = 11.0;
-pub const P_GRASS: f32 = 12.0;
-pub const P_STONE: f32 = 13.0;
-pub const P_HEART: f32 = 14.0;
-pub const P_RING: f32 = 15.0;
-pub const P_SCRAP: f32 = 16.0;
-pub const P_SHADOW: f32 = 18.0;
-
-// Upgrade ids.
-pub const U_SCYTHE: usize = 0;
-pub const U_TALISMAN: usize = 1;
-pub const U_BEADS: usize = 2;
-pub const U_PULSE: usize = 3;
-pub const U_VITALITY: usize = 4;
-pub const U_SWIFT: usize = 5;
-pub const U_LURE: usize = 6;
-pub const U_MIGHT: usize = 7;
-pub const U_HASTE: usize = 8;
-pub const U_MENDING: usize = 9;
-pub const N_UPGRADES: usize = 10;
-pub const UPGRADE_MAX: [u8; N_UPGRADES] = [6, 6, 6, 6, 5, 5, 5, 5, 5, 5];
-
-// Event types, read by the host for sound.
-pub const EV_HIT: f32 = 1.0;
-pub const EV_KILL: f32 = 2.0;
-pub const EV_PICKUP: f32 = 3.0;
-pub const EV_LEVELUP: f32 = 4.0;
-pub const EV_HURT: f32 = 5.0;
-pub const EV_SLASH: f32 = 6.0;
-pub const EV_SHOOT: f32 = 7.0;
-pub const EV_PULSE: f32 = 8.0;
-pub const EV_DEATH: f32 = 9.0;
-pub const EV_HEAL: f32 = 10.0;
-pub const EV_ELITE: f32 = 11.0;
-
-pub const STATE_FLOATS: usize = 32;
-
-pub const INK: [f32; 3] = [0.17, 0.15, 0.13];
 
 /// Enemy archetype.
 pub struct Kind {

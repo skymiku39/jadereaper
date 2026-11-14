@@ -52,8 +52,10 @@ The UI is HTML and CSS over the canvas: torn-edge paper sheets, tags and cards, 
 
 | Path | What it is |
 | --- | --- |
+| `content/game.toml` | Part, upgrade and event ids, upgrade max levels and glyphs, state indices, ink colour |
 | `core/` | Rust simulation. No dependencies, no bindgen. |
-| `core/src/defs.rs` | Instance format, part ids, upgrade ids, enemy table |
+| `core/src/defs.rs` | Instance format, enemy table, re-exports the generated ids |
+| `core/src/generated.rs` | Generated from `content/game.toml` |
 | `core/src/game.rs` | State, simulation step, puppet posing, instance building |
 | `core/src/lib.rs` | The `jr_*` functions exported to JavaScript, and tests |
 | `wasm/` | Built core |
@@ -64,10 +66,11 @@ The UI is HTML and CSS over the canvas: torn-edge paper sheets, tags and cards, 
 | `src/audio.js` | Synthesized sound effects (no audio files) |
 | `src/ui.js` | Screens, HUD, menu focus |
 | `src/save.js` | Records and settings in localStorage |
-| `src/data.js` | Part names, upgrade text, state and event ids |
+| `src/data.js` | Re-exports the generated tables from `src/generated.js` |
 | `assets/parts.json` | Optional image overrides for parts |
 | `assets/fonts/` | Bundled UI fonts, cut down to the game's characters, with their licenses |
 | `tools/` | Font subset and check scripts, the local server and the smoke test |
+| `tools/gen/` | Generator for the id constants (a separate Rust crate) |
 
 ## Fonts
 
@@ -87,7 +90,7 @@ The scripts need Node 26 (see `.node-version`) and the dev dependencies that `np
 Each frame the host calls `jr_input`, then `jr_update(dt)`, and reads three buffers out of wasm memory:
 
 - Instances: 12 floats per paper part (`x, y, half width, half height, rotation, part id, flash, seed, r, g, b, a`). These bytes go to the GPU unchanged.
-- State: 32 floats for the HUD (health, experience, time, offered upgrades and so on). Indices are in `src/data.js` under `STATE`.
+- State: 32 floats for the HUD (health, experience, time, offered upgrades and so on). Indices are the `[[state]]` entries in `content/game.toml`, generated as `STATE` in JavaScript and `S_*` in Rust.
 - Events: 4 floats each (`type, x, y, value`), used for sound.
 
 When the core sets the "choosing" flag the host shows the upgrade cards and answers with `jr_choose(slot)`.
@@ -102,7 +105,9 @@ rustup target add wasm32-unknown-unknown
 ./build.sh
 ```
 
-Run the simulation tests natively:
+The script first regenerates the id constants from `content/game.toml`, then builds the wasm.
+
+Run the simulation tests natively (they also check that the generated files are current):
 
 ```bash
 cargo test --release --manifest-path core/Cargo.toml
@@ -110,11 +115,13 @@ cargo test --release --manifest-path core/Cargo.toml
 
 ## Extending
 
+Ids live in one place, `content/game.toml`. After editing it, run `./build.sh` (or just the generator, `cargo run --release --manifest-path tools/gen/Cargo.toml`) and commit the content file together with `core/src/generated.rs`, `src/generated.js` and `src/shader.wgsl`. A part named `player_body` becomes `P_PLAYER_BODY` in Rust, `PART_PLAYER_BODY` in the shader and `PART_IDS.player_body` in JavaScript.
+
 - New enemy: add a row to `KINDS` in `core/src/defs.rs` and a spawn rule in `Game::spawn`.
-- New upgrade: add an id and max level in `defs.rs`, its effect in `Game::weapons` or where the stat is read, and its glyph in `src/data.js`, and its card text as `upgrade.<id>.name` and `upgrade.<id>.desc` in every language in `src/i18n.js`.
+- New upgrade: add an `[[upgrade]]` entry (next id, name, max level, glyph) to `content/game.toml`, its effect in `Game::weapons` or where the stat is read, and its card text as `upgrade.<id>.name` and `upgrade.<id>.desc` in every language in `src/i18n.js`.
 - New text: add a key to every language in `src/i18n.js`, then use `t(key)` in code or a `data-i18n` attribute in `index.html`. Missing keys fall back to English.
 - New language: add its code to `LANGS` and a table to `STRINGS` in `src/i18n.js`, and to start new players in it, set `DEFAULT_LANG`.
-- New part shape: add a part id in `defs.rs`, a `case` in `shape()` in `src/shader.wgsl`, and a name in `PART_IDS` in `src/data.js`.
+- New part shape: add a `[[part]]` entry to `content/game.toml`, then a `case PART_<NAME>` in `shape()` in `src/shader.wgsl` (and in `isFlat` if it is a flat mark).
 
 ## What is in the backbone
 

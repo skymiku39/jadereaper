@@ -1,0 +1,246 @@
+//! Checks for `content/game.toml` and the code generated from it.
+//!
+//! The generator lives in `tools/gen` (a separate crate, so it builds even
+//! when the core does not). Its pure functions are included here by path.
+
+#[allow(dead_code)]
+#[path = "../../tools/gen/src/content.rs"]
+mod content;
+
+use std::path::PathBuf;
+
+fn root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..")
+}
+
+/// A repository file, with line endings normalised to LF.
+fn read(rel: &str) -> String {
+    let path = root().join(rel);
+    std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("{}: {e}", path.display()))
+        .replace("\r\n", "\n")
+}
+
+fn real() -> content::Content {
+    match content::load(&read(content::CONTENT_PATH)) {
+        Ok(c) => c,
+        Err(errs) => panic!("{} has problems:\n  {}", content::CONTENT_PATH, errs.join("\n  ")),
+    }
+}
+
+/// Errors from loading the real content file with one edit applied.
+fn errors_after(from: &str, to: &str) -> Vec<String> {
+    let src = read(content::CONTENT_PATH);
+    assert!(src.contains(from), "test edit `{from}` not found in the content file");
+    match content::load(&src.replacen(from, to, 1)) {
+        Ok(_) => panic!("content with `{from}` -> `{to}` was accepted"),
+        Err(errs) => errs,
+    }
+}
+
+fn assert_error(errs: &[String], needle: &str) {
+    assert!(errs.iter().any(|e| e.contains(needle)), "expected an error containing `{needle}`, got {errs:#?}");
+}
+
+const STALE: &str = "is out of date; run ./build.sh (or cargo run --release --manifest-path tools/gen/Cargo.toml)";
+
+#[test]
+fn content_file_is_valid() {
+    let c = real();
+    assert!(!c.parts.is_empty() && !c.upgrades.is_empty() && !c.events.is_empty() && !c.state.is_empty());
+}
+
+#[test]
+fn generated_rust_is_current() {
+    assert!(read(content::RUST_OUT) == content::render_rust(&real()), "{} {STALE}", content::RUST_OUT);
+}
+
+#[test]
+fn generated_js_is_current() {
+    assert!(read(content::JS_OUT) == content::render_js(&real()), "{} {STALE}", content::JS_OUT);
+}
+
+#[test]
+fn generated_shader_block_is_current() {
+    let shader = read(content::WGSL_PATH);
+    let fresh = content::splice_wgsl(&shader, &real()).unwrap();
+    assert!(shader == fresh, "the generated block in {} {STALE}", content::WGSL_PATH);
+}
+
+#[test]
+fn rendering_is_deterministic() {
+    let c = real();
+    assert_eq!(content::render_rust(&c), content::render_rust(&real()));
+    assert_eq!(content::render_js(&c), content::render_js(&real()));
+    for text in [content::render_rust(&c), content::render_js(&c), content::render_wgsl_block(&c)] {
+        assert!(!text.contains('\r'));
+        assert!(text.ends_with('\n'));
+    }
+    // Splicing twice changes nothing.
+    let once = content::splice_wgsl(&read(content::WGSL_PATH), &c).unwrap();
+    assert_eq!(content::splice_wgsl(&once, &c).unwrap(), once);
+}
+
+// ------------------------------------------------------- broken content
+
+#[test]
+fn duplicate_part_id_is_rejected() {
+    let errs = errors_after("id = 18\nname = \"ground_shadow\"", "id = 16\nname = \"ground_shadow\"");
+    assert_error(&errs, "duplicate part id 16");
+}
+
+#[test]
+fn duplicate_names_are_rejected() {
+    assert_error(&errors_after("name = \"wisp\"", "name = \"blot\""), "duplicate part name `blot`");
+    assert_error(&errors_after("name = \"mending\"", "name = \"haste\""), "duplicate upgrade name `haste`");
+    assert_error(&errors_after("name = \"kills\"", "name = \"hp\""), "duplicate state name `hp`");
+}
+
+#[test]
+fn duplicate_event_id_is_rejected() {
+    assert_error(&errors_after("id = 11\nname = \"elite\"", "id = 10\nname = \"elite\""), "duplicate event id 10");
+}
+
+#[test]
+fn upgrade_ids_must_have_no_gaps() {
+    assert_error(&errors_after("id = 9\nname = \"mending\"", "id = 12\nname = \"mending\""), "without gaps");
+}
+
+#[test]
+fn undefined_reference_is_rejected() {
+    assert_error(&errors_after("len = \"upgrade\"", "len = \"upgrades\""), "not a defined table");
+}
+
+#[test]
+fn overlapping_state_is_rejected() {
+    assert_error(&errors_after("name = \"over\"\nindex = 11", "name = \"over\"\nindex = 10"), "overlaps `choice`");
+    assert_error(&errors_after("state_floats = 32", "state_floats = 20"), "ends past state_floats");
+}
+
+#[test]
+fn malformed_entries_are_rejected() {
+    assert_error(&errors_after("name = \"wisp\"", "name = \"wisp\"\ncolour = 3"), "unknown key `colour`");
+    assert_error(&errors_after("[[event]]", "[[sound]]"), "unknown table [[sound]]");
+    assert_error(&errors_after("max = 5\nglyph = \"癒\"", "glyph = \"癒\""), "missing `max`");
+    assert_error(&errors_after("id = 18", "id = 40"), "must be below 32");
+    assert_error(&errors_after("name = \"wisp\"", "name = \"Wisp\""), "snake_case");
+    assert_error(&errors_after("glyph = \"力\"", "glyph = \"力量\""), "one character");
+    assert_error(&errors_after("ink = [0.17, 0.15, 0.13]", "ink = [0.17, 0.15]"), "`ink`");
+}
+
+// -------------------------------------------- references from other files
+
+/// Identifiers that follow `prefix` where `prefix` is not part of a longer word.
+fn refs(text: &str, prefix: &str) -> Vec<String> {
+    let ident = |c: char| c.is_ascii_alphanumeric() || c == '_';
+    let mut out = Vec::new();
+    for (i, _) in text.match_indices(prefix) {
+        if text[..i].chars().next_back().is_some_and(ident) {
+            continue;
+        }
+        let rest = &text[i + prefix.len()..];
+        let end = rest.find(|c: char| !ident(c)).unwrap_or(rest.len());
+        if end > 0 {
+            out.push(rest[..end].to_string());
+        }
+    }
+    out
+}
+
+fn js_sources() -> Vec<(String, String)> {
+    let mut files: Vec<String> = std::fs::read_dir(root().join("src"))
+        .unwrap()
+        .map(|e| e.unwrap().file_name().into_string().unwrap())
+        .filter(|n| n.ends_with(".js") && n != "generated.js")
+        .collect();
+    files.sort();
+    files.into_iter().map(|n| { let t = read(&format!("src/{n}")); (n, t) }).collect()
+}
+
+#[test]
+fn js_uses_only_defined_state_and_event_names() {
+    let c = real();
+    let state: Vec<String> = c.state.iter().map(|s| {
+        let n = s.name.to_ascii_uppercase();
+        if s.len.is_some() { format!("{n}0") } else { n }
+    }).collect();
+    let events: Vec<String> = c.events.iter().map(|e| e.name.to_ascii_uppercase()).collect();
+    let mut seen = 0;
+    for (file, text) in js_sources() {
+        for name in refs(&text, "STATE.") {
+            assert!(state.contains(&name), "src/{file} uses STATE.{name}, which content/game.toml does not define");
+            seen += 1;
+        }
+        for name in refs(&text, "EVENT.") {
+            assert!(events.contains(&name), "src/{file} uses EVENT.{name}, which content/game.toml does not define");
+            seen += 1;
+        }
+    }
+    assert!(seen > 0, "found no STATE./EVENT. uses; is the scan broken?");
+}
+
+#[test]
+fn shader_uses_only_defined_parts() {
+    let c = real();
+    let shader = read(content::WGSL_PATH);
+    let begin = shader.find(content::WGSL_BEGIN).unwrap();
+    let end = shader.find(content::WGSL_END).unwrap();
+    let outside = format!("{}{}", &shader[..begin], &shader[end..]);
+    let names: Vec<String> = c.parts.iter().map(|p| p.name.to_ascii_uppercase()).collect();
+    let used = refs(&outside, "PART_");
+    assert!(!used.is_empty(), "found no PART_ uses in the shader; is the scan broken?");
+    for name in used {
+        assert!(names.contains(&name), "src/shader.wgsl uses PART_{name}, which content/game.toml does not define");
+    }
+    // No literal part ids left in the switch.
+    for line in outside.lines() {
+        let t = line.trim_start();
+        if let Some(rest) = t.strip_prefix("case ") {
+            assert!(!rest.starts_with(|ch: char| ch.is_ascii_digit()), "literal case in shader: {t}");
+        }
+    }
+}
+
+#[test]
+fn part_overrides_name_defined_parts() {
+    let c = real();
+    let json = read("assets/parts.json");
+    // Keys are the strings followed by a colon.
+    let mut keys = Vec::new();
+    let mut parts = json.split('"');
+    let mut inside = false;
+    let mut last = "";
+    for piece in parts.by_ref() {
+        if inside {
+            last = piece;
+        } else if piece.trim_start().starts_with(':') && !last.is_empty() {
+            keys.push(last.to_string());
+        }
+        inside = !inside;
+    }
+    for key in keys {
+        assert!(c.parts.iter().any(|p| p.name == key), "assets/parts.json overrides `{key}`, which is not a part");
+    }
+}
+
+#[test]
+fn every_upgrade_has_card_text() {
+    let c = real();
+    let i18n = read("src/i18n.js");
+    let langs = i18n
+        .split("export const LANGS = [")
+        .nth(1)
+        .and_then(|s| s.split(']').next())
+        .map(|s| s.split(',').filter(|x| !x.trim().is_empty()).count())
+        .expect("LANGS not found in src/i18n.js");
+    for u in &c.upgrades {
+        for field in ["name", "desc"] {
+            let key = format!("'upgrade.{}.{field}'", u.id);
+            assert_eq!(i18n.matches(&key).count(), langs, "{key} should appear once per language in src/i18n.js");
+        }
+    }
+    for id in refs(&i18n, "'upgrade.") {
+        let n: u32 = id.parse().unwrap_or_else(|_| panic!("odd upgrade key upgrade.{id}"));
+        assert!(c.upgrades.iter().any(|u| u.id == n), "src/i18n.js has text for upgrade {n}, which is not defined");
+    }
+}
