@@ -9,9 +9,9 @@
 - Code checkpoint: 0ded95a (`docs: point the play link at the fork's pages site`), on `main` at d579ad3.
 - Fork settings changed the same day, at the user's request: GitHub Pages is on for `skymiku39/jadereaper` with the GitHub Actions source, and the `github-pages` environment allows only `main`. The `Pages` run for d579ad3 was rerun and passed; `Smoke` and `Fonts` passed too. This replaces the "Pages deploy has not been set up" remark in the `integrate/own-version` subsection.
 - Verification: documentation only; no checks were run. The deployed site answers 200 for `index.html`, `style.css`, `src/main.js`, `src/generated.js` and the wasm (69,732 bytes, the same as the local build). Not checked: playing it in a browser.
-- Left as they are, because they belong to the open choice about the upstream process files: the `pomodorozhong` mentions in `CONTRIBUTING.md`, `.github/ISSUE_TEMPLATE/` and `tools/sync-labels.sh`.
-- Next action: P-14.
-- Pending: **P-14** push this branch to `fork` and fast-forward the fork's `main` to it. Why: pushing needs approval. Blocks: the corrected link reaching the fork.
+- Done on 2026-11-15, at the user's word that the fork is the source of truth: the `pomodorozhong` mentions in `CONTRIBUTING.md`, `.github/ISSUE_TEMPLATE/` and `tools/sync-labels.sh` now name `skymiku39`.
+- Next action: push this branch to `fork` and fast-forward `fork/main` (P-14, approved by the user on 2026-11-15).
+- Pending: none. P-14 was approved on 2026-11-15.
 
 ### integrate/own-version
 
