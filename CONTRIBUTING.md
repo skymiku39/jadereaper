@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping with Jade Reaper. The maintainer is @pomodorozhong, who decides what gets built and in what order. This page explains how to propose work so it lands smoothly. It applies the same way to people and to AI coding agents working for them.
+Thanks for helping with Jade Reaper. The maintainer is @skymiku39, who decides what gets built and in what order. This page explains how to propose work so it lands smoothly. It applies the same way to people and to AI coding agents working for them.
 
 ## The flow
 
