@@ -39,7 +39,7 @@ The ranks above are by impact for the cost. The working order, agreed with the m
 3. The mission framework from step 4: a mission has an objective, a win condition and a result screen, and can be picked from the title screen. "Survive a time" is the first mission.
 4. Mission prototypes from the list in the design document, section 4.2.1. All of them are built (2026-11-16); what is left is playing them and settling their numbers.
 5. Step 1: the data-driven rewrite, then martial arts × magic elements and reactions.
-6. The remaining mission prototypes, then step 2 (game feel) and the rest of step 4.
+6. Step 2 (game feel) and the rest of step 4.
 
 Leave 6 and 7 until the target devices and horde size are decided.
 
