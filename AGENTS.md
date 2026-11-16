@@ -6,7 +6,7 @@ Checks: `cargo test --release --manifest-path core/Cargo.toml`, then `./build.sh
 
 ## Contributing
 
-Before opening an issue or a PR, read [CONTRIBUTING.md](CONTRIBUTING.md) and follow it.
+This is a one-person version: build the maintainer's design in [docs/design.md](docs/design.md) and ask the maintainer alone about design questions. Before opening a PR, read [CONTRIBUTING.md](CONTRIBUTING.md) and follow it.
 
 <!-- handoff:start (from the handoff skill; edit the skill's template, not this copy) -->
 ## Handoff
