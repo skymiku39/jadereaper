@@ -14,6 +14,17 @@ Cut from `main` at 1221228 on 2026-11-16 to bring the plan files up to date afte
 
 The `handoff` skill that `AGENTS.md` points to (`references/working-rules.md`) is not in the repository, its history, or the user's skill folders, so this branch followed only the rules written in `AGENTS.md`.
 
+Pushed to `origin` on 2026-11-16 (the user said "推"); no PR is open.
+
+### feat/mission-tuning
+
+A setup screen before every mission, where a tester changes the mission's numbers (the user asked for it on 2026-11-16 after playing: distances too far, counts too high or low). Cut from `docs/plan-refresh` at 771b494, so it carries that branch's two commits; merging this one brings them along. Committed, pushed and opened as a PR on 2026-11-16 (the user chose "Create PR"); merging it needs the user's word.
+
+- **How it works:** a number that can be changed is a `[[tune]]` in `content/game.toml` (42 of them: 3 to 5 per mission, and `spawn_rate`, `enemy_speed` and `enemy_hp` for every mission). The generator writes `T_*`, `TUNE_DEFAULT`, `TUNE_MIN`, `TUNE_MAX` and `MISSION_GOAL_TUNE` for Rust and `TUNES` for JavaScript. `Game.tune` holds a run's values; `jr_tune` and `jr_tune_reset` set them for the next `jr_start`. The mission files read `self.tune[...]` where they had constants. A title button now opens `#setup` (`setup` in `src/ui.js`, `openSetup`, `stepTune` and `startRun` in `src/main.js`); values are kept in the save as `tuning`.
+- **Decided here, not by the user:** a run with any tune off its default is a test run and is not recorded (no win, try or endless record). Which numbers are tunes and their ranges are a first pick.
+- **Checked:** `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings` on `core` and `tools/gen`, `cargo test --release` (169 passed, 5 ignored; 18 content tests), `./build.sh` (a second run changes nothing), `npm run fonts:subset` and `fonts:check`, `npm run determinism`, `npm run smoke` (it now goes through the setup screen). The recorded whole-run hash test passes, so default runs play as before. A throwaway script in headless Chromium opened the `escape` setup screen in Chinese at 1280x800, changed two values, started the run (the HUD state showed the changed goal), reopened the screen (the values were kept), reset them and went back with Esc: no console errors.
+- **Not checked:** nobody has played a run with changed values, so whether each tune does what its label says in play is only covered by the unit tests. Gamepad navigation of the steppers, the English labels on screen, narrow screens, and a setup screen taller than the window were not tried. The mission files were changed by a subagent; the non-test part of its diff was read, its new tests were not.
+
 Other work starts on a new branch cut from `main`.
 
 Merged on 2026-11-16 by rebase as PR 6 (the user said "合併部署，並且我要試玩"): `feat/missions-all`, all nine remaining mission types from `docs/design.md` 4.2.1. Its three CI checks passed before the merge. The Pages deploy of `main` succeeded and https://skymiku39.github.io/jadereaper/ serves the twelve missions; the Core, Smoke and Fonts runs on `main` at 1221228 passed as well. The branch is deleted locally and on `origin`. The user is about to play the missions; their findings feed P-29 and P-30. What follows describes that work.
