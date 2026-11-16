@@ -53,8 +53,9 @@ Leave 6 and 7 until the target devices and horde size are decided.
   - Parts: name, id, whether it is a flat mark or a cutout.
   - Enemies: health, speed, radius, damage, experience, rig, colour, spawn rules (start time, weight, cap).
   - Martial arts (the design's 武學 axis): each is one of a small set of behaviours with parameters: `arc` (scythe), `projectile` (talisman), `orbit` (beads), `nova` (pulse). Each has a per-level table for damage, cooldown, count, reach, pierce and knockback, and belongs to a school (流派). Players and enemies use the same definitions with different numbers.
-  - Magic elements (the 魔法 axis): four placeholders (magic, fire, lightning, holy), each with one effect it applies on hit and the tag it leaves on the enemy. A martial art carries at most one element, and works with none.
-  - Reactions: a short list of element pairs. When an enemy holds both tags, the reaction fires and consumes them, so effects combine instead of stacking without limit.
+  - Magic elements (the 魔法 axis): seven (metal, wood, water, fire, earth, lightning, holy), each with one effect it applies on hit. Metal and wood act on the player (a damage-absorbing shield, a slow heal) and leave no tag; the other five act on the enemy and leave a tag. A martial art carries at most one element, and works with none. The effects are listed in the design document, section 4.5.
+  - Reactions: three element pairs in the first version (fire and lightning, water and lightning, water and fire). When an enemy holds both tags, the reaction fires and consumes them, so effects combine instead of stacking without limit.
+  - At most six martial arts are held at once.
   - Passive upgrades as stat modifiers (`move_speed +8%`, `damage +12%`, `cooldown -8%`, `regen +0.4/s`, `pickup_range +30%`, `max_hp +20`).
   - Puppet rigs: a list of parts with pivot, offset, size, draw order and which pose channels move them; and named poses (`idle`, `walk_a`, `walk_b`, `attack`, `hurt`) as small per-part deltas of offset, tilt and squash.
 - A generator script (Node, no dependencies) run by `build.sh` that writes `core/src/generated.rs`, `src/generated.js` and the part id constants at the top of `src/shader.wgsl`. Generated files are committed so the game still runs without the build step.
@@ -62,9 +63,9 @@ Leave 6 and 7 until the target devices and horde size are decided.
 - Let `assets/parts.json` map a part to several images (for example `blot` and `blot_hurt`) so a pose can swap a part's picture, still without frame-by-frame animation.
 - Update `assets/parts/README.md` and the README's "Extending" section.
 
-**Done when.** Adding a new enemy, a new martial art of an existing behaviour, a new element or a new reaction is a content-file edit plus `./build.sh`, with no Rust or JavaScript changes. With no element attached, the existing four weapons, four enemies and six passives play the same as today (checked with step 3's tool if it exists, or by side-by-side play). Each of the four elements can be attached to each martial art, and at least two reactions work. A test fails the build if any id is duplicated or referenced but undefined.
+**Done when.** Adding a new enemy, a new martial art of an existing behaviour, a new element or a new reaction is a content-file edit plus `./build.sh`, with no Rust or JavaScript changes. With no element attached, the existing four weapons, four enemies and six passives play the same as today (checked with step 3's tool if it exists, or by side-by-side play). Each of the seven elements can be attached to each martial art, and the three reactions work. A test fails the build if any id is duplicated or referenced but undefined.
 
-**Risks.** Over-designing the behaviour system. Keep it to the four existing behaviours plus whatever step 4 needs; add more only when a real weapon needs it. Rig blending adds per-instance work in the core; measure at the 500-enemy cap. This step is now large: the data-driven rewrite and the element axis can be separate PRs, rewrite first. Effects for 16 art-and-element pairs are a lot of art; start with a colour tint per element.
+**Risks.** Over-designing the behaviour system. Keep it to the four existing behaviours plus whatever step 4 needs; add more only when a real weapon needs it. Rig blending adds per-instance work in the core; measure at the 500-enemy cap. This step is now large: the data-driven rewrite and the element axis can be separate PRs, rewrite first. Effects for 28 art-and-element pairs (four behaviours, seven elements) are a lot of art; start with a colour tint per element.
 
 ## 2. Game feel pass
 
