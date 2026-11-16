@@ -2,7 +2,7 @@
 
 A browser survivor game: Rust simulation compiled to WebAssembly, WebGPU paper-cutout renderer, paper-style HTML UI. See [README.md](README.md) for how to run and extend it, [ROADMAP.md](ROADMAP.md) for the plan and [docs/README.md](docs/README.md) for gotchas.
 
-Checks: `cargo test --release --manifest-path core/Cargo.toml`, then `./build.sh` after any change in `core/`, then `npm run smoke` (after `npm ci`).
+Checks: `cargo test --release --manifest-path core/Cargo.toml`, then `./build.sh` after any change in `core/`, then `npm run smoke` (after `npm ci`). CI also runs `cargo fmt --check` and `cargo clippy -- -D warnings` on `core/` and `tools/gen/`, and fails if `./build.sh` changes any committed file.
 
 ## Contributing
 

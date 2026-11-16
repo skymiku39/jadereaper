@@ -1,0 +1,52 @@
+name: Core
+
+# Checks the Rust core, the id generator and the JavaScript host:
+# formatting, clippy, the tests, a syntax check of every script, and that the
+# committed wasm and generated files match a fresh build. The toolchain comes
+# from rust-toolchain.toml, so the build here is the same as a local one.
+# Fix a "stale build" failure by running ./build.sh and committing the result.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Install the pinned Rust toolchain
+        run: rustup toolchain install
+      - name: Format
+        run: |
+          cargo fmt --manifest-path core/Cargo.toml -- --check
+          cargo fmt --manifest-path tools/gen/Cargo.toml -- --check
+      - name: Clippy
+        run: |
+          cargo clippy --release --manifest-path core/Cargo.toml --all-targets -- -D warnings
+          cargo clippy --release --manifest-path core/Cargo.toml --target wasm32-unknown-unknown -- -D warnings
+          cargo clippy --release --manifest-path tools/gen/Cargo.toml --all-targets -- -D warnings
+      - name: Test
+        run: |
+          cargo test --release --manifest-path core/Cargo.toml
+          cargo test --release --manifest-path tools/gen/Cargo.toml
+      - name: Build
+        run: ./build.sh
+      - name: Fail on a stale build
+        run: |
+          if ! git diff --exit-code --stat; then
+            echo "::error::The committed wasm or generated files differ from a fresh build. Run ./build.sh and commit the result."
+            exit 1
+          fi
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Check JavaScript syntax
+        run: |
+          for file in src/*.js tools/*.mjs; do
+            node --check "$file"
+          done
