@@ -6,6 +6,7 @@
 //! on a low, stepped frame rate instead of playing sprite frames.
 
 use crate::defs::*;
+use crate::fmath;
 use core::f32::consts::TAU;
 
 const MAX_ENEMIES: usize = 500;
@@ -95,6 +96,10 @@ pub struct Game {
     pub time: f32,
     /// Animation clock. Keeps going on the title and upgrade screens.
     pub anim: f32,
+    /// Steps taken since the game was created.
+    pub ticks: u32,
+    /// Real time not yet turned into a step.
+    acc: f32,
     /// Half extents of the visible area in world units.
     pub view_w: f32,
     pub view_h: f32,
@@ -127,6 +132,37 @@ pub struct Game {
     order: Vec<(f32, u16)>,
 }
 
+/// Length of one simulation step in seconds.
+pub const TICK: f32 = 1.0 / 60.0;
+
+/// Play `ticks` steps of a run with inputs drawn from a second generator and
+/// return the final state hash. Native and wasm builds must agree on it; the
+/// determinism check compares them.
+pub fn scripted_run(seed: u32, ticks: u32) -> u32 {
+    let mut game = Game::new(seed);
+    game.running = true;
+    let mut bot = Rng((seed ^ 0x9e37_79b9) | 1);
+    for t in 0..ticks {
+        if t % 30 == 0 {
+            game.input = (bot.range(-1.0, 1.0), bot.range(-1.0, 1.0));
+        }
+        game.tick();
+        if game.choosing {
+            game.choose((bot.next_u32() % 3) as usize);
+            // Fewer than three cards were offered and the pick was empty.
+            if game.choosing {
+                game.choose(0);
+            }
+        }
+        // Keep going after death so late-game spawning is covered too.
+        if game.over {
+            game.over = false;
+            game.player.hp = game.player.max_hp;
+        }
+    }
+    game.hash()
+}
+
 fn xp_for(level: u32) -> f32 {
     let l = level as f32;
     4.0 + l * 3.5 + l * l * 0.4
@@ -147,6 +183,8 @@ impl Game {
             over: false,
             time: 0.0,
             anim: 0.0,
+            ticks: 0,
+            acc: 0.0,
             view_w: 640.0,
             view_h: 360.0,
             input: (0.0, 0.0),
@@ -197,20 +235,84 @@ impl Game {
         self.view_h = half_h.max(100.0);
     }
 
+    /// Advance by `dt` seconds of real time and rebuild what the host reads.
+    ///
+    /// The simulation only ever moves in whole steps of `TICK`, so a run
+    /// depends on the seed and the inputs, not on the frame rate. Time that
+    /// does not fill a step is carried over to the next call.
     pub fn update(&mut self, dt: f32) {
-        let dt = if dt.is_finite() { dt.clamp(0.0, 0.05) } else { 0.0 };
-        self.events.clear();
-        self.anim += dt;
-        if self.running && !self.choosing && !self.over {
-            self.step(dt);
+        let mut dt = if dt.is_finite() { dt.clamp(0.0, 0.05) } else { 0.0 };
+        // A 60 Hz display reports frame times that wobble around one step.
+        // Treat those as exactly one, or the wobble shows as skipped and
+        // doubled steps.
+        if (dt - TICK).abs() < TICK * 0.12 {
+            dt = TICK;
         }
+        self.events.clear();
+        self.acc += dt;
+        while self.acc >= TICK {
+            self.acc -= TICK;
+            self.tick();
+        }
+        self.present();
+    }
+
+    /// Advance the simulation by exactly one step, without drawing.
+    pub fn tick(&mut self) {
+        self.ticks = self.ticks.wrapping_add(1);
+        self.anim += TICK;
+        if self.running && !self.choosing && !self.over {
+            self.step(TICK);
+        }
+        self.shake = (self.shake - TICK * 3.0).max(0.0);
+    }
+
+    /// Rebuild the camera, the instance list and the HUD state.
+    pub fn present(&mut self) {
         // Camera follows the player, with a decaying shake.
-        self.shake = (self.shake - dt * 3.0).max(0.0);
         let s = self.shake * self.shake * 9.0;
         let q = (self.anim * 30.0).floor();
-        self.cam = (self.player.x + s * (q * 12.9898).sin(), self.player.y - 30.0 + s * (q * 78.233).cos());
+        self.cam = (self.player.x + s * fmath::sin(q * 12.9898), self.player.y - 30.0 + s * fmath::cos(q * 78.233));
         self.build();
         self.write_state();
+    }
+
+    /// A checksum of everything that decides how the run continues. Two runs
+    /// with the same seed and inputs have the same hash after the same number
+    /// of steps, on every platform.
+    pub fn hash(&self) -> u32 {
+        let mut h = 0x811c_9dc5u32;
+        let mut mix = |v: u32| h = (h ^ v).wrapping_mul(0x0100_0193);
+        mix(self.ticks);
+        mix(self.rng.0);
+        mix(self.time.to_bits());
+        mix(self.kills);
+        mix(self.pending);
+        let p = &self.player;
+        for v in [p.x, p.y, p.hp, p.max_hp, p.xp, p.xp_next] {
+            mix(v.to_bits());
+        }
+        mix(p.level);
+        for &level in &self.up {
+            mix(level as u32);
+        }
+        mix(self.enemies.len() as u32);
+        for e in &self.enemies {
+            mix(e.x.to_bits());
+            mix(e.y.to_bits());
+            mix(e.hp.to_bits());
+        }
+        mix(self.shots.len() as u32);
+        for s in &self.shots {
+            mix(s.x.to_bits());
+            mix(s.y.to_bits());
+        }
+        mix(self.gems.len() as u32);
+        for g in &self.gems {
+            mix(g.x.to_bits());
+            mix(g.y.to_bits());
+        }
+        h
     }
 
     fn event(&mut self, kind: f32, x: f32, y: f32, v: f32) {
@@ -291,7 +393,7 @@ impl Game {
 
     fn weapons(&mut self, dt: f32) {
         let might = 1.0 + 0.12 * self.lvl(U_MIGHT);
-        let haste = 0.92f32.powf(self.lvl(U_HASTE));
+        let haste = fmath::powu(0.92, self.up[U_HASTE] as u32);
         let (px, py) = (self.player.x, self.player.y);
 
         // Scythe: a sweeping arc in the aim direction.
@@ -313,7 +415,7 @@ impl Game {
                 }
             }
             self.player.attack = 0.25;
-            let rot = ay.atan2(ax);
+            let rot = fmath::atan2(ay, ax);
             let arcs = if lvl >= 5.0 { 2 } else { 1 };
             for k in 0..arcs {
                 self.add_fx(Fx {
@@ -346,7 +448,7 @@ impl Game {
                 let count = 1 + (lvl as usize) / 2;
                 let mut best = [(f32::MAX, 0usize); 4];
                 for (i, e) in self.enemies.iter().enumerate() {
-                    let d = (e.x - px).powi(2) + (e.y - py).powi(2);
+                    let d = (e.x - px) * (e.x - px) + (e.y - py) * (e.y - py);
                     for s in 0..count {
                         if d < best[s].0 {
                             for t in (s + 1..count).rev() {
@@ -459,7 +561,7 @@ impl Game {
     fn bead_pos(&self, k: usize, n: usize) -> (f32, f32) {
         let radius = 78.0 + 6.0 * self.lvl(U_BEADS);
         let a = self.time * 2.8 + k as f32 * TAU / n as f32;
-        (self.player.x + a.cos() * radius, self.player.y + a.sin() * radius * 0.8)
+        (self.player.x + fmath::cos(a) * radius, self.player.y + fmath::sin(a) * radius * 0.8)
     }
 
     fn spawn_ring(&self) -> f32 {
@@ -478,8 +580,8 @@ impl Game {
         self.next_id = self.next_id.wrapping_add(1).max(1);
         let seed = self.rng.f();
         self.enemies.push(Enemy {
-            x: self.player.x + a.cos() * ring,
-            y: self.player.y + a.sin() * ring,
+            x: self.player.x + fmath::cos(a) * ring,
+            y: self.player.y + fmath::sin(a) * ring,
             kx: 0.0,
             ky: 0.0,
             hp: k.hp * scale,
@@ -521,7 +623,7 @@ impl Game {
         let (px, py) = (self.player.x, self.player.y);
         let ring = self.spawn_ring();
         let far = ring * 1.8;
-        let decay = (-8.0 * dt).exp();
+        let decay = fmath::exp(-8.0 * dt);
         let mut hit: Option<f32> = None;
         for e in self.enemies.iter_mut() {
             let k = &KINDS[e.kind as usize];
@@ -560,8 +662,8 @@ impl Game {
                     self.add_fx(Fx {
                         x: px,
                         y: py - 30.0,
-                        vx: a.cos() * s,
-                        vy: a.sin() * s - 60.0,
+                        vx: fmath::cos(a) * s,
+                        vy: fmath::sin(a) * s - 60.0,
                         life: 0.5,
                         max: 0.5,
                         part: P_SCRAP,
@@ -707,8 +809,8 @@ impl Game {
                 self.add_fx(Fx {
                     x: e.x,
                     y: e.y - k.r * 0.5,
-                    vx: a.cos() * s,
-                    vy: a.sin() * s * 0.6,
+                    vx: fmath::cos(a) * s,
+                    vy: fmath::sin(a) * s * 0.6,
                     life: 0.55,
                     max: 0.55,
                     part: P_SPLAT,
@@ -786,7 +888,7 @@ impl Game {
             }
             f.x += f.vx * dt;
             f.y += f.vy * dt;
-            let drag = (-5.0 * dt).exp();
+            let drag = fmath::exp(-5.0 * dt);
             f.vx *= drag;
             f.vy *= drag;
             f.rot += f.vr * dt;
@@ -906,7 +1008,7 @@ impl Game {
         // Things in the air.
         for i in 0..self.shots.len() {
             let s = &self.shots[i];
-            let (x, y, rot) = (s.x, s.y, s.vy.atan2(s.vx) + TAU * 0.25);
+            let (x, y, rot) = (s.x, s.y, fmath::atan2(s.vy, s.vx) + TAU * 0.25);
             self.put(x, y - 24.0, 6.0, 11.0, rot, P_TALISMAN, 0.0, 0.5, [0.89, 0.77, 0.38, 1.0]);
         }
         let n = self.bead_count();
@@ -990,7 +1092,7 @@ impl Game {
         if e.kind == K_WISP {
             // Wisps hover and flap by squeezing their width.
             let hw = if pose == 0 { k.hw } else { k.hw * 0.7 };
-            let bob = (self.anim * 5.0 + e.seed * 20.0).sin() * 3.0;
+            let bob = fmath::sin(self.anim * 5.0 + e.seed * 20.0) * 3.0;
             self.put(e.x, e.y - 26.0 + bob, hw * e.face, k.hh, tilt * 0.5, k.part, e.flash, e.seed, c);
         } else {
             self.put(e.x, e.y - k.hh + hop, k.hw * e.face, k.hh, tilt, k.part, e.flash, e.seed, c);
@@ -1025,7 +1127,7 @@ impl Game {
             // Resting over the shoulder, behind the body.
             self.put(px - f * 15.0, py - 46.0 + bob, 20.0 * f, 34.0, -f * 0.45 + tilt, P_SCYTHE, flash, 0.21, scythe);
         }
-        let top_x = px + 26.0 * tilt.sin();
+        let top_x = px + 26.0 * fmath::sin(tilt);
         self.put(px, py - 26.0 + bob, 20.0 * f, 26.0, tilt, P_PLAYER_BODY, flash, 0.37, [0.20, 0.42, 0.36, a]);
         self.put(
             top_x + f * 2.0,
