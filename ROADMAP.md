@@ -15,7 +15,7 @@ Known weaknesses, which the steps below address:
 - **Puppets are posed in code.** `draw_player` and `draw_enemy` hardcode part offsets, tilts and sizes. A custom image can replace a part's picture but not how a character is assembled or how it moves.
 - **Runs cannot be recorded yet.** The core steps at a fixed 60 Hz and plays the same run natively and in wasm (the first slice of step 3, done), but nothing records inputs, plays a replay back or simulates runs in bulk.
 - **Weapon hits are brute force.** The spatial grid is only used for enemy separation; every weapon loops over every enemy. Fine at the 500-enemy cap, not beyond.
-- **A run has no shape.** One endless arena, no win condition, the elite is just a big brute with no attacks, and nothing carries over between runs.
+- **A run has little shape.** There is a mission framework with one goal mission (stay alive for five minutes) next to endless, but one open arena, the elite is just a big brute with no attacks, and nothing carries over between runs. A bot that only runs away wins the survive mission every time at level 1, so the mission needs pressure that running cannot escape.
 - **Balance is untested by people.** Numbers were tuned only against a bot that walks in circles, which survived about 2 minutes 20 seconds.
 
 ## Summary
