@@ -60,6 +60,15 @@ export const MISSIONS = [
   { id: 0, name: 'endless', goal: 0 },
   { id: 1, name: 'survive', goal: 300 },
   { id: 2, name: 'kills', goal: 1500 },
+  { id: 3, name: 'formation', goal: 5 },
+  { id: 4, name: 'arena', goal: 10 },
+  { id: 5, name: 'retrieval', goal: 3 },
+  { id: 6, name: 'pursuit', goal: 3000 },
+  { id: 7, name: 'escort', goal: 21000 },
+  { id: 8, name: 'hold', goal: 300 },
+  { id: 9, name: 'escape', goal: 18000 },
+  { id: 10, name: 'boss', goal: 12000 },
+  { id: 11, name: 'vendetta', goal: 6 },
 ];
 
 /** Mission ids by name. */
@@ -67,10 +76,19 @@ export const MISSION_IDS = {
   endless: 0,
   survive: 1,
   kills: 2,
+  formation: 3,
+  arena: 4,
+  retrieval: 5,
+  pursuit: 6,
+  escort: 7,
+  hold: 8,
+  escape: 9,
+  boss: 10,
+  vendetta: 11,
 };
 
 /** Size of the state array written by the core, in floats. */
-export const STATE_FLOATS = 32;
+export const STATE_FLOATS = 60;
 
 /** Indices into the state array. A run of floats has a 0 suffix (CHOICE0). */
 export const STATE = {
@@ -93,6 +111,19 @@ export const STATE = {
   GOAL: 27,
   PROGRESS: 28,
   WON: 29,
+  ESCAPE: 32,
+  ESCAPED: 33,
+  CARRIED: 36,
+  ESCORT_HP: 44,
+  ESCORT_MAX_HP: 45,
+  ESCORT_FELL: 46,
+  POINT_HP: 48,
+  POINT_MAX: 49,
+  POINT_FELL: 50,
+  EXIT_X: 52,
+  EXIT_Y: 53,
+  EXIT_DIST: 54,
+  BOSS_WAIT: 56,
 };
 
 export const INK = [0.17, 0.15, 0.13];

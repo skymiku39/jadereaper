@@ -17,7 +17,7 @@
 ink = [0.17, 0.15, 0.13]
 
 # Size of the HUD state buffer in floats.
-state_floats = 32
+state_floats = 60
 
 # ---------------------------------------------------------------- parts
 # Paper part ids, sent to the renderer in each instance. The name is also the
@@ -236,6 +236,71 @@ id = 2
 name = "kills"
 goal = 1500
 
+# Destroy `goal` formation nodes. Each keeps spawning enemies until it falls.
+[[mission]]
+id = 3
+name = "formation"
+goal = 5
+
+# Clear `goal` waves, one at a time. The next wave only comes once the current
+# one is dead. The waves are in core/src/mission_arena.rs.
+[[mission]]
+id = 4
+name = "arena"
+goal = 10
+
+# Fetch `goal` relics from far-off spots and bring each back to the start.
+# Carrying slows the player. A relic counts once it is delivered.
+[[mission]]
+id = 5
+name = "retrieval"
+goal = 3
+
+# Catch and kill a target before it reaches its exit. goal is the target's
+# health, so progress is the damage dealt. Lost on death or when it escapes.
+# The rules are in core/src/mission_pursuit.rs.
+[[mission]]
+id = 6
+name = "pursuit"
+goal = 3000
+
+# Walk a villager to a far shrine. `goal` is the route length in world units
+# (ESCORT_LEGS x ESCORT_LEG_LEN in core/src/mission_escort.rs). The run is
+# lost when the villager falls.
+[[mission]]
+id = 7
+name = "escort"
+goal = 21000
+
+# Stand inside the circle round the shrine for `goal` seconds while the horde
+# wears the shrine down. The run is also lost when the shrine falls. The rules
+# live in core/src/mission_hold.rs.
+[[mission]]
+id = 8
+name = "hold"
+goal = 300
+
+# Reach the exit, `goal` world units from the start, while surrounded. The
+# rules are in core/src/mission_escape.rs.
+[[mission]]
+id = 9
+name = "escape"
+goal = 18000
+
+# Defeat the boss. `goal` is its health. The rules and numbers are in
+# core/src/mission_boss.rs.
+[[mission]]
+id = 10
+name = "boss"
+goal = 12000
+
+# Travel to a marked place and kill the goal marked enemies that wait there.
+# The count is the number of marked enemies; progress is how many are dead.
+[[mission]]
+id = 11
+name = "vendetta"
+goal = 6
+
 # ---------------------------------------------------------------- state
 # Fields of the HUD state buffer written by Game::write_state. `index` is the
 # first float. A field with `len` is a run of floats; its constant gets a 0
@@ -278,6 +343,7 @@ index = 7
 [[state]]
 name = "choice"
 index = 8
+
 len = 3
 
 [[state]]
@@ -304,6 +370,7 @@ index = 15
 [[state]]
 name = "upgrade"
 index = 16
+
 len = "upgrade"
 
 # Id of the mission being played.
@@ -324,3 +391,66 @@ index = 28
 [[state]]
 name = "won"
 index = 29
+
+# How many relics the player is carrying now (retrieval mission).
+[[state]]
+name = "carried"
+index = 36
+
+# Pursuit mission: how far along its route the target is, 0..1, and 1 once it
+# has reached the exit.
+[[state]]
+name = "escape"
+index = 32
+
+[[state]]
+name = "escaped"
+index = 33
+
+# The escorted villager's health, and 1 when its fall ended the run. Indices
+# 30 to 43 are left free for other missions.
+[[state]]
+name = "escort_hp"
+index = 44
+
+[[state]]
+name = "escort_max_hp"
+index = 45
+
+[[state]]
+name = "escort_fell"
+index = 46
+
+# The `hold` mission's shrine: its health and full health, and 1 when the run
+# ended because it fell rather than because the player died.
+[[state]]
+name = "point_hp"
+index = 48
+
+[[state]]
+name = "point_max"
+index = 49
+
+[[state]]
+name = "point_fell"
+index = 50
+
+# The escape mission's exit: where it is, and how far from the player.
+[[state]]
+name = "exit_x"
+index = 52
+
+[[state]]
+name = "exit_y"
+index = 53
+
+[[state]]
+name = "exit_dist"
+index = 54
+
+# Boss mission: seconds until the boss arrives, 0 once it is here.
+[[state]]
+name = "boss_wait"
+index = 56
+
+# Boss mission: seconds until the boss arrives, 0 once it is here.

@@ -180,8 +180,17 @@ async function boot() {
       }
       ui.hud({
         hp: s[STATE.HP], maxHp: s[STATE.MAX_HP], xp: s[STATE.XP], xpNext: s[STATE.XP_NEXT],
-        level: s[STATE.LEVEL], time: s[STATE.TIME], kills: s[STATE.KILLS], upgrades: upgradeLevels(s),
-        mission, goal: s[STATE.GOAL], progress: s[STATE.PROGRESS],
+        level: s[STATE.LEVEL], time: s[STATE.TIME], kills: s[STATE.KILLS], enemies: s[STATE.ENEMIES],
+        upgrades: upgradeLevels(s), mission, goal: s[STATE.GOAL], progress: s[STATE.PROGRESS],
+        // Values of single missions; the HUD ignores them in the others.
+        carried: s[STATE.CARRIED], escape: s[STATE.ESCAPE], bossWait: s[STATE.BOSS_WAIT],
+        escortHp: s[STATE.ESCORT_HP], escortMaxHp: s[STATE.ESCORT_MAX_HP],
+        pointHp: s[STATE.POINT_HP], pointMax: s[STATE.POINT_MAX],
+        // Where the exit is on screen (escape mission), from the camera and the visible area in world units.
+        exit: {
+          dx: s[STATE.EXIT_X] - s[STATE.CAM_X], dy: s[STATE.EXIT_Y] - s[STATE.CAM_Y],
+          w: view.w, h: view.h, dist: s[STATE.EXIT_DIST],
+        },
       });
       const run = { time: s[STATE.TIME], kills: s[STATE.KILLS], level: s[STATE.LEVEL] };
       if (s[STATE.WON]) {
@@ -195,7 +204,12 @@ async function boot() {
           ui.gameOver(mission, run, save, recordRun(save, run));
         } else {
           recordMission(save, mission.name, false);
-          ui.gameOver(mission, run, save, null);
+          // A mission can be lost without the player dying; the title then says why.
+          let reason = null;
+          if (s[STATE.ESCAPED] === 1) reason = 'over.escaped';
+          else if (s[STATE.ESCORT_FELL] > 0) reason = 'over.escortFell';
+          else if (s[STATE.POINT_FELL] === 1) reason = 'over.fell';
+          ui.gameOver(mission, run, save, null, reason);
         }
       } else if (s[STATE.CHOOSING]) {
         mode = 'levelup';

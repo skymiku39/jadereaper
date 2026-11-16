@@ -112,7 +112,7 @@ fn undefined_reference_is_rejected() {
 #[test]
 fn overlapping_state_is_rejected() {
     assert_error(&errors_after("name = \"over\"\nindex = 11", "name = \"over\"\nindex = 10"), "overlaps `choice`");
-    assert_error(&errors_after("state_floats = 32", "state_floats = 20"), "ends past state_floats");
+    assert_error(&errors_after("state_floats = 60", "state_floats = 20"), "ends past state_floats");
 }
 
 #[test]

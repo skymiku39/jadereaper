@@ -67,19 +67,86 @@ export function createUI({ onAction }) {
     else $(id).style.setProperty(prop, value);
   }
 
-  function hud({ hp, maxHp, xp, xpNext, level, time, kills, upgrades, mission, goal, progress }) {
+  /** The arrow at the screen edge that points to the exit while it is off screen. `exit` is null in other missions. */
+  function exitMarker(exit) {
+    const margin = 0.06;
+    const u = exit ? exit.dx / exit.w : 0;
+    const v = exit ? exit.dy / exit.h : 0;
+    const off = exit && (Math.abs(u) > 0.5 - margin || Math.abs(v) > 0.5 - margin);
+    set('exitMarker', 'display', off ? '' : 'none');
+    if (!off) return;
+    const k = (0.5 - margin) / Math.max(Math.abs(u), Math.abs(v));
+    set('exitMarker', 'left', `${((0.5 + u * k) * 100).toFixed(1)}%`);
+    set('exitMarker', 'top', `${((0.5 + v * k) * 100).toFixed(1)}%`);
+    set('exitMarker', 'transform', `translate(-50%, -50%) rotate(${Math.atan2(exit.dy, exit.dx).toFixed(3)}rad)`);
+  }
+
+  /** Draw the HUD. The values after `progress` belong to single missions and are ignored in the others. */
+  function hud({
+    hp, maxHp, xp, xpNext, level, time, kills, enemies, upgrades, mission, goal, progress,
+    carried, escape, escortHp, escortMaxHp, pointHp, pointMax, exit, bossWait,
+  }) {
     set('hpFill', 'width', `${Math.max(0, Math.min(100, (hp / maxHp) * 100)).toFixed(1)}%`);
     set('hpText', 'text', String(Math.ceil(hp)));
     set('xpFill', 'width', `${Math.max(0, Math.min(100, (xp / xpNext) * 100)).toFixed(1)}%`);
     set('levelText', 'text', t('hud.level', { n: level }));
     // A timed mission counts down to its goal; endless counts up.
     const timed = mission.id === MISSION_IDS.survive;
-    set('timeText', 'text', formatTime(timed ? Math.ceil(goal - progress) : time));
-    set('goalText', 'text', timed ? t(`mission.${mission.name}.hud`) : '');
-    set('goalText', 'display', timed ? '' : 'none');
+    const is = (name) => mission.id === MISSION_IDS[name];
+    // The clock tag: hold shows time held / needed, escape the distance left to the exit.
+    const holding = is('hold');
+    const escaping = is('escape');
+    let clock = formatTime(timed ? Math.ceil(goal - progress) : time);
+    if (holding) clock = `${formatTime(Math.floor(progress))} / ${formatTime(goal)}`;
+    else if (escaping) clock = String(Math.ceil(exit.dist / 10) * 10);
+    set('timeText', 'text', clock);
+    // The small label beside the clock says what the mission is counting.
+    const boss = is('boss');
+    const waiting = boss && bossWait > 0;
+    let label = '';
+    if (timed || holding || escaping) {
+      label = t(`mission.${mission.name}.hud`);
+    } else if (is('formation')) {
+      label = t('mission.formation.hud', { n: progress, goal });
+    } else if (is('arena')) {
+      // The wave, and how many enemies of it are left.
+      const wave = t('mission.arena.hud', { n: Math.min(progress + 1, goal), goal });
+      label = enemies > 0 ? `${wave} · ${t('mission.arena.left', { n: enemies })}` : wave;
+    } else if (is('retrieval')) {
+      label = t('mission.retrieval.hud', { n: progress, goal, c: carried });
+    } else if (is('pursuit')) {
+      // What is left of the target's health, and how far along its route it is.
+      label = t('mission.pursuit.hud', { left: Math.round(100 * (1 - progress / goal)), exit: Math.floor(100 * escape) });
+    } else if (waiting) {
+      label = t('hud.bossIn', { time: formatTime(Math.ceil(bossWait)) });
+    } else if (boss) {
+      label = t('hud.boss', { hp: Math.max(0, Math.ceil(goal - progress)) });
+    }
+    set('goalText', 'text', label);
+    set('goalText', 'display', label ? '' : 'none');
+    // The shrine's health, in the hold mission only.
+    set('pointRow', 'display', holding ? '' : 'none');
+    if (holding) {
+      set('pointFill', 'width', `${Math.max(0, Math.min(100, (pointHp / pointMax) * 100)).toFixed(1)}%`);
+      set('pointText', 'text', String(Math.ceil(pointHp)));
+    }
+    exitMarker(escaping ? exit : null);
+    // The boss's health bar, once it has arrived.
+    set('bossBar', 'display', boss && !waiting ? '' : 'none');
+    set('bossFill', 'width', `${Math.max(0, Math.min(100, (goal ? (goal - progress) / goal : 0) * 100)).toFixed(1)}%`);
     // A kill-count mission shows how many are left to go.
     const counted = mission.id === MISSION_IDS.kills;
-    set('killsText', 'text', counted ? `${Math.min(kills, goal)} / ${goal}` : String(kills));
+    // The escort mission also shows the villager's health and how far it has walked.
+    const escorting = mission.id === MISSION_IDS.escort;
+    set('escortTag', 'display', escorting ? '' : 'none');
+    if (escorting) {
+      set('escortFill', 'width', `${Math.max(0, Math.min(100, (escortHp / escortMaxHp) * 100)).toFixed(1)}%`);
+      set('escortText', 'text', `${Math.floor((progress / goal) * 100)}%`);
+    }
+    // The vendetta mission counts only its marked enemies.
+    const marked = mission.id === MISSION_IDS.vendetta;
+    const killsText = counted ? `${Math.min(kills, goal)} / ${goal}` : String(kills);
+    set('killsText', 'text', marked ? `${progress} / ${goal}` : killsText);
     const sig = getLang() + upgrades.join(',');
     if (cache.chips !== sig) {
       cache.chips = sig;
@@ -138,8 +205,15 @@ export function createUI({ onAction }) {
     }));
   }
 
-  /** The run ended in death. `beaten` says which endless records fell; null for other missions. */
-  function gameOver(mission, { time, kills, level }, save, beaten) {
+  /**
+   * The run was lost. `beaten` says which endless records fell; null for other missions.
+   * `reason` is the text key of the title when the run ended without the player dying
+   * (the pursuit target got away, the villager or the shrine fell); null for death.
+   */
+  function gameOver(mission, { time, kills, level }, save, beaten, reason = null) {
+    const title = $('overTitle');
+    title.dataset.i18n = reason || 'over.title';
+    setText(title, t(title.dataset.i18n));
     const rows = [
       [t('over.survived'), formatTime(time), beaten?.time],
       [t('over.kills'), String(kills), beaten?.kills],
