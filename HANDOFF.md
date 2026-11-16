@@ -8,9 +8,15 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### feat/marker-distance
+### docs/elements-and-reactions
 
-Two things the user asked for on 2026-11-16 after playing PR 7: the distance shown at the arrow markers, and an accept phase before every mission ("要先到某一個地方停留一段時間"). Cut from `main` at 35c65d5. Committed, pushed and opened as PR 8 on 2026-11-16 (the user chose "Create PR"); merging it needs the user's word.
+Design answers from the user on 2026-11-17, written into `docs/design.md` 4.5 and section 9 and into `ROADMAP.md` step 1. Cut from `main` at 6121c27. Nothing is committed or pushed; documents only, no code, so no checks were run.
+
+- **Decided by the user:** seven elements (the five phases plus lightning and holy) instead of the four Elden Ring placeholders; metal is a protective shield, wood is a slow heal, fire burns, lightning chains, and water, earth and holy follow the proposal the user picked; reactions are output-with-output pairs only, with no weakness rules; at most six martial arts.
+- **Decided here, not by the user** (the user said "隨你處理"): the three reaction pairs (fire and lightning, water and lightning, water and fire) and that metal and wood, acting on the player, leave no tag and take no part in reactions.
+- **Open:** every number of the seven effects; the wuxia names of the effects. Holy's extra damage to corpse enemies stays although reactions have no weakness rules; the user picked it as an on-hit effect.
+
+Merged on 2026-11-16 by rebase as PR 8 (the user merged it; its four runs on `main` at 6121c27 passed and `feat/marker-distance` is deleted): the distance shown at the arrow markers, and an accept phase before every mission ("要先到某一個地方停留一段時間"), both asked for by the user after playing PR 7. What follows describes PR 8.
 
 - **Marker tags:** each place that draws an edge-of-screen marker calls `Game::point(x, y)`; `Game.pointers` holds `[x, y, distance from the player, 0]` per marker and the host reads it through `jr_pointers_ptr` and `jr_pointer_count`. `pointers` in `src/ui.js` puts a tag with the distance (rounded to 10) on the line from the screen centre to the thing, 100 world units in from the edge.
 - **Accept phase:** `core/src/accept.rs`. `jr_start` now calls `Game::brief`, which puts the player `accept_dist` (600) from the origin and waits; standing within 70 of the origin for `accept_time` (3 s) in one go calls `Game::start`. Until then `Game.mission` is endless, nothing spawns and the clock stands still. Both numbers are tunes for every mission; a time of 0 skips the phase. `Game::start` still starts a mission at once, and the tests and `scripted_run` use it. The HUD label says what to do (`hud.acceptGo`, `hud.accept`). The player movement moved out of `step` into `Game::walk`.
@@ -54,7 +60,7 @@ The working order agreed with the user on 2026-11-16, with missions moved ahead 
 
 1. Mission prototypes from `docs/design.md` 4.2.1: all built and merged as PR 6. Next for them is the user playing them and the decisions in `Pending` (P-29, P-30).
 2. The rest of roadmap step 3: input recording with replay playback, then the headless balance tool. The fixed time step is done (PR 3).
-3. Data-driven content rewrite (roadmap step 1), then martial arts × magic elements and reactions. Needs the user's answers first: what each of the four elements does, which pairs react, and how many martial arts can be held at once (design document, open items 2 and 4).
+3. Data-driven content rewrite (roadmap step 1), then martial arts × magic elements and reactions. The user answered open items 2 and 4 of the design document on 2026-11-17 (seven elements, three reactions, six martial arts), so nothing blocks it; the numbers are settled by playing the prototype.
 4. The game feel pass (roadmap step 2), then the rest of roadmap step 4. A determinism check and a smoke test that play the new missions belong here or earlier.
 5. English UI fonts to match the Chinese set.
 6. Touch controls and a WebGL2 fallback (roadmap step 6); scaling to thousands of enemies (roadmap step 7).
@@ -63,13 +69,12 @@ Done: the rest of CI (roadmap step 5), merged as PR 2, and the fixed time step, 
 
 ## Pending
 
-- **P-16** Delete the old local branches `docs/game-design`, `feat/content-generator`, `test/weapon-behaviour`, `integrate/own-version` and `docs/own-pages-url`, the worktrees under `.worktrees/`, and the remote branches `docs/game-design`, `test/weapon-behaviour` and `docs/own-pages-url` on `skymiku39/jadereaper`. Their code is on `main` (cherry-picked, so the first three do not show as merged); only their own handoff commits would be lost. Why: deleting branches needs approval. Blocks: nothing.
-- **P-33** Delete `docs/plan-refresh` locally and on `origin`. It has no PR of its own; `git cherry main docs/plan-refresh` shows both its commits are on `main` through PR 7. Why: the user's clean-up rule only covers a branch with a merged PR. Blocks: nothing.
 - **P-21** The user's call on the survive mission: it can be won by only running away. In a native simulation of 40 seeds, a bot that moves away from nearby enemies and always takes the first card won 40 of 40 at a mean level of 1.4; a bot walking in circles won 0 of 40 and lasted 102 s on average. The arena has no edge and enemies are slower than the player. It needs pressure that running cannot escape (a bounded arena, spawns that surround, faster chasers); open in `docs/design.md` 4.2.1. Blocks: nothing, but it shapes the next mission prototypes.
 - **P-22** The user has not yet said whether the game looks right at the fixed step (PR 3). Blocks: nothing.
-- **P-32** Delete the nine local branches `feat/mission-<name>` and their worktrees, now that PR 6 is merged. They were never pushed. They were combined by hand, so git will not report them as merged and `git branch -d` will refuse. Why: deleting unmerged-looking branches needs approval. Blocks: nothing.
 - **P-29** What makes the encirclement in `escape` real, since enemies neither block nor outrun the player: guards standing at the exit, a slowdown inside a crowd, or a higher enemy cap. Same root as P-21. Blocks: `escape` being a mission at all.
 - **P-30** The user's call on the prototype numbers of the nine missions, above all `pursuit`'s three-minute length and whether `retrieval` may be won without fighting. Blocks: nothing.
 - **P-25** The user's call on the kill-count goal of 1500 and on whether that mission should have a time limit; open in `docs/design.md` 4.2.1. Blocks: nothing.
+
+Closed on 2026-11-17: P-16, P-32 and P-33 are done, the user said "先清理舊分支"; the fifteen old local branches (`docs/game-design`, `docs/own-pages-url`, `docs/plan-refresh`, `feat/content-generator`, `integrate/own-version`, `test/weapon-behaviour` and the nine `feat/mission-<name>`), every worktree under `.worktrees/`, and the four branches `docs/game-design`, `docs/own-pages-url`, `docs/plan-refresh` and `test/weapon-behaviour` on `origin` are gone. Only `main` is left locally and on `origin`; statements above that these branches still exist are out of date.
 
 Closed on 2026-11-16: P-31 is done, PR 6 merged at the user's word; P-28 is done, the user said "提交並合併" and the nine missions are committed and combined on `feat/missions-all`; P-27 is answered, the user said the five decided types are built too; P-17 and P-26 are answered, the user said to build every mission, so the four suggested types are accepted and all are being built; P-23 is done, the user said to delete the merged branches, so `chore/solo-housekeeping`, `ci/core-checks`, `feat/fixed-step`, `feat/mission-survive` and `feat/mission-kills` are gone locally and on `origin` (the user's standing preference is to delete a branch once it merges, without asking); P-24 is done, PR 5 merged at the user's word; P-20 is done, PR 4 merged at the user's word ("通過後合併"); P-02 (roadmap issues) is withdrawn, since issues are off and `ROADMAP.md` is the plan; P-10 is obsolete, the backup branches no longer exist; P-12 is obsolete, that change merged upstream as #26; P-14 is done, `main` on the user's repository is at 82e268d; P-15 is done, `chore/solo-housekeeping` merged as PR 1.
