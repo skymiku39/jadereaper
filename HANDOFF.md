@@ -10,7 +10,7 @@ Environment: `gh` is not installed inside WSL, so use the Windows one with `--re
 
 ### docs/elements-and-reactions
 
-Design answers from the user on 2026-11-17, written into `docs/design.md` 4.5 and section 9 and into `ROADMAP.md` step 1. Cut from `main` at 6121c27. Nothing is committed or pushed; documents only, no code, so no checks were run.
+Design answers from the user on 2026-11-17, written into `docs/design.md` 4.5 and section 9 and into `ROADMAP.md` step 1. Cut from `main` at 6121c27. Committed, pushed and opened as PR 9 on 2026-11-17 (the user said "推送並開 PR"); documents only, no code, so no checks were run locally. The user then said "先不要更新網頁": do not merge it, since a merge to `main` redeploys Pages, until the user says so.
 
 - **Decided by the user:** seven elements (the five phases plus lightning and holy) instead of the four Elden Ring placeholders; metal is a protective shield, wood is a slow heal, fire burns, lightning chains, and water, earth and holy follow the proposal the user picked; reactions are output-with-output pairs only, with no weakness rules; at most six martial arts.
 - **Decided here, not by the user** (the user said "隨你處理"): the three reaction pairs (fire and lightning, water and lightning, water and fire) and that metal and wood, acting on the player, leave no tag and take no part in reactions.
