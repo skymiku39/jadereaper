@@ -247,6 +247,40 @@ mod tests {
     }
 
     #[test]
+    fn kills_mission_is_won_at_its_goal() {
+        let mut game = Game::new(11);
+        game.start(M_KILLS);
+        let goal = game.goal();
+        assert!(goal > 0.0);
+        // Leave the goal one kill away, then let the weapons make it.
+        game.kills = goal as u32 - 1;
+        game.tick();
+        assert!(!game.won);
+        assert_eq!(game.progress(), goal - 1.0);
+        play_unhurt(&mut game, 120);
+        assert!(game.won && !game.over, "no kill in two minutes");
+        assert!(game.kills as f32 >= goal);
+        assert!(game.events.iter().any(|e| e[0] == EV_WIN));
+
+        game.update(game::TICK);
+        assert_eq!(game.state[S_WON], 1.0);
+        assert_eq!(game.state[S_MISSION], M_KILLS as f32);
+        assert_eq!(game.state[S_GOAL], goal);
+        // Several enemies can die in the winning step; progress stops at the goal.
+        assert_eq!(game.state[S_PROGRESS], goal);
+    }
+
+    #[test]
+    fn kills_mission_counts_kills_not_time() {
+        let mut game = Game::new(5);
+        game.start(M_KILLS);
+        play_unhurt(&mut game, 30);
+        assert!(game.kills > 0 && (game.kills as f32) < game.goal(), "{} kills", game.kills);
+        assert!(!game.won && !game.over);
+        assert_eq!(game.progress(), game.kills as f32);
+    }
+
+    #[test]
     fn endless_mission_is_never_won() {
         let mut game = Game::new(11);
         game.start(M_ENDLESS);

@@ -54,17 +54,19 @@ export const EVENT = {
   WIN: 12,
 };
 
-/** Missions, indexed by id. `goal` is what the mission asks for (seconds for survive).
+/** Missions, indexed by id. `goal` is what the mission asks for (seconds for survive, enemies for kills).
  * Names and descriptions are in src/i18n.js as mission.<name>.name and .desc. */
 export const MISSIONS = [
   { id: 0, name: 'endless', goal: 0 },
   { id: 1, name: 'survive', goal: 300 },
+  { id: 2, name: 'kills', goal: 1500 },
 ];
 
 /** Mission ids by name. */
 export const MISSION_IDS = {
   endless: 0,
   survive: 1,
+  kills: 2,
 };
 
 /** Size of the state array written by the core, in floats. */

@@ -251,6 +251,7 @@ impl Game {
     pub fn progress(&self) -> f32 {
         match self.mission {
             M_SURVIVE => self.time.min(self.goal()),
+            M_KILLS => (self.kills as f32).min(self.goal()),
             _ => 0.0,
         }
     }
@@ -259,6 +260,7 @@ impl Game {
     fn mission_won(&self) -> bool {
         match self.mission {
             M_SURVIVE => self.time >= self.goal(),
+            M_KILLS => self.kills as f32 >= self.goal(),
             _ => false,
         }
     }

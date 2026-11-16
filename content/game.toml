@@ -230,6 +230,12 @@ id = 1
 name = "survive"
 goal = 300
 
+# Cut down `goal` enemies. There is no time limit.
+[[mission]]
+id = 2
+name = "kills"
+goal = 1500
+
 # ---------------------------------------------------------------- state
 # Fields of the HUD state buffer written by Game::write_state. `index` is the
 # first float. A field with `len` is a run of floats; its constant gets a 0
