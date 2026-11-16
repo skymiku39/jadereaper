@@ -7,7 +7,13 @@
 
 use crate::defs::*;
 use crate::fmath;
+use crate::mission_arena::Arena;
+use crate::mission_escape::Escape;
+use crate::mission_formation::Formation;
+use crate::mission_hold::{Hold, POINT, POINT_HP};
+use crate::mission_retrieval::{Canvas, Retrieval};
 use core::f32::consts::TAU;
+use mission_escort::Escort;
 
 const MAX_ENEMIES: usize = 500;
 const MAX_GEMS: usize = 700;
@@ -109,6 +115,8 @@ pub struct Game {
     pub view_h: f32,
     pub input: (f32, f32),
     pub player: Player,
+    /// State of the `escort` mission; idle in every other mission.
+    pub escort: Escort,
     pub enemies: Vec<Enemy>,
     pub shots: Vec<Shot>,
     pub gems: Vec<Gem>,
@@ -117,14 +125,30 @@ pub struct Game {
     pub choices: [i32; 3],
     pub pending: u32,
     pub kills: u32,
+    /// State of the retrieval mission; idle in other missions.
+    pub retrieval: Retrieval,
+    /// State of the `hold` mission; idle in every other mission.
+    pub hold: Hold,
+    /// State of the `escape` mission.
+    pub escape: Escape,
+    /// State of the boss mission; idle in the others.
+    boss: mission_boss::Boss,
     pub shake: f32,
     pub cam: (f32, f32),
+    /// The nodes of the `formation` mission. Empty in every other mission.
+    pub formation: Formation,
+    /// State of the arena mission.
+    pub arena: Arena,
+    /// State of the vendetta mission; empty in every other mission.
+    pub vendetta: mission_vendetta::Vendetta,
     spawn_acc: f32,
     next_elite: f32,
     next_id: u32,
     t_scythe: f32,
     t_talisman: f32,
     t_pulse: f32,
+    /// State of the pursuit mission; idle in every other mission.
+    pursuit: mission_pursuit::Pursuit,
     pub inst: Vec<Inst>,
     pub events: Vec<[f32; 4]>,
     pub state: [f32; STATE_FLOATS],
@@ -209,6 +233,7 @@ impl Game {
                 iframe: 0.0,
                 attack: 0.0,
             },
+            escort: Escort::new(),
             enemies: Vec::with_capacity(MAX_ENEMIES),
             shots: Vec::with_capacity(MAX_SHOTS),
             gems: Vec::with_capacity(MAX_GEMS),
@@ -217,14 +242,22 @@ impl Game {
             choices: [-1; 3],
             pending: 0,
             kills: 0,
+            retrieval: Retrieval::default(),
+            hold: Hold::new(),
+            escape: Escape::default(),
+            boss: mission_boss::Boss::default(),
             shake: 0.0,
             cam: (0.0, -30.0),
+            formation: Formation::default(),
+            arena: Arena::new(),
+            vendetta: mission_vendetta::Vendetta::default(),
             spawn_acc: 0.0,
             next_elite: 90.0,
             next_id: 1,
             t_scythe: 0.6,
             t_talisman: 0.5,
             t_pulse: 2.0,
+            pursuit: mission_pursuit::Pursuit::default(),
             inst: Vec::with_capacity(MAX_INST),
             events: Vec::with_capacity(256),
             state: [0.0; STATE_FLOATS],
@@ -239,7 +272,25 @@ impl Game {
     /// Start a run of the given mission. An unknown id plays endless.
     pub fn start(&mut self, mission: usize) {
         self.mission = if mission < N_MISSIONS { mission } else { M_ENDLESS };
+        self.hold.begin(self.mission == M_HOLD);
         self.running = true;
+        if self.mission == M_FORMATION {
+            self.formation_start();
+        }
+        self.arena = Arena::new();
+        if self.mission == M_RETRIEVAL {
+            self.retrieval.reset(&mut self.rng);
+        }
+        if self.mission == M_PURSUIT {
+            self.pursuit_start();
+        }
+        self.escort_begin();
+        if self.mission == M_ESCAPE {
+            self.escape_begin();
+        }
+        if self.mission == M_VENDETTA {
+            self.vendetta_start();
+        }
     }
 
     /// What the mission asks for, in its own unit. 0 for none.
@@ -252,6 +303,15 @@ impl Game {
         match self.mission {
             M_SURVIVE => self.time.min(self.goal()),
             M_KILLS => (self.kills as f32).min(self.goal()),
+            M_FORMATION => self.formation.destroyed() as f32,
+            M_ARENA => (self.arena.cleared as f32).min(self.goal()),
+            M_RETRIEVAL => self.retrieval.delivered() as f32,
+            M_PURSUIT => self.pursuit_progress(),
+            M_ESCORT => self.escort.walked.min(self.goal()),
+            M_HOLD => self.hold.progress(self.goal()),
+            M_ESCAPE => self.escape_progress(),
+            M_BOSS => self.boss_progress(),
+            M_VENDETTA => self.vendetta_progress(),
             _ => 0.0,
         }
     }
@@ -261,6 +321,15 @@ impl Game {
         match self.mission {
             M_SURVIVE => self.time >= self.goal(),
             M_KILLS => self.kills as f32 >= self.goal(),
+            M_FORMATION => self.formation.cleared(),
+            M_ARENA => self.arena.won(),
+            M_RETRIEVAL => self.retrieval.won(),
+            M_PURSUIT => self.pursuit_won(),
+            M_ESCORT => self.escort.walked >= self.goal(),
+            M_HOLD => self.hold.won(self.goal()),
+            M_ESCAPE => self.escape.won(self.player.x, self.player.y),
+            M_BOSS => self.boss_dead(),
+            M_VENDETTA => self.vendetta_won(),
             _ => false,
         }
     }
@@ -323,8 +392,29 @@ impl Game {
         mix(self.time.to_bits());
         mix(self.kills);
         mix(self.pending);
+        if self.mission == M_PURSUIT {
+            for v in self.pursuit_hash() {
+                mix(v);
+            }
+        }
         mix(self.mission as u32);
         mix(self.won as u32);
+        mix(self.arena.spawned);
+        mix(self.arena.cleared);
+        mix(self.arena.pause.to_bits());
+        self.retrieval.mix(&mut mix);
+        if self.escort.active {
+            self.escort.mix_into(&mut mix);
+        }
+        self.hold.mix(&mut mix);
+        for v in self.escape.hash_words() {
+            mix(v);
+        }
+        if self.mission == M_VENDETTA {
+            for v in self.vendetta.hash_words() {
+                mix(v);
+            }
+        }
         let p = &self.player;
         for v in [p.x, p.y, p.hp, p.max_hp, p.xp, p.xp_next] {
             mix(v.to_bits());
@@ -349,10 +439,16 @@ impl Game {
             mix(g.x.to_bits());
             mix(g.y.to_bits());
         }
+        self.formation.mix_into(&mut mix);
+        if self.mission == M_BOSS {
+            for v in self.boss.hash_words() {
+                mix(v);
+            }
+        }
         h
     }
 
-    fn event(&mut self, kind: f32, x: f32, y: f32, v: f32) {
+    pub(crate) fn event(&mut self, kind: f32, x: f32, y: f32, v: f32) {
         if self.events.len() < 256 {
             self.events.push([kind, x, y, v]);
         }
@@ -379,7 +475,7 @@ impl Game {
             my /= len;
             len = 1.0;
         }
-        let speed = 190.0 * (1.0 + 0.08 * self.lvl(U_SWIFT));
+        let speed = 190.0 * (1.0 + 0.08 * self.lvl(U_SWIFT)) * self.retrieval.speed_factor();
         let regen = 0.4 * self.lvl(U_MENDING);
         let p = &mut self.player;
         p.moving = len > 0.15;
@@ -396,9 +492,31 @@ impl Game {
         p.attack = (p.attack - dt).max(0.0);
         p.hp = (p.hp + regen * dt).min(p.max_hp);
 
+        let moved = self.retrieval.step(self.player.x, self.player.y);
+        if moved.picked > 0 {
+            self.event(EV_PICKUP, self.player.x, self.player.y, 0.0);
+        }
+        if moved.delivered > 0 {
+            self.event(EV_HEAL, self.player.x, self.player.y, 0.0);
+        }
+
         self.weapons(dt);
-        self.spawn(dt);
+        self.spawn(dt * self.boss_spawn_scale());
+        self.formation_step(dt);
+        self.pursuit_step(dt);
+        if self.mission == M_ESCAPE {
+            self.escape_spawn(dt);
+        }
+        self.boss_think(dt);
+        self.vendetta.step(self.player.x, self.player.y);
         self.move_enemies(dt);
+        self.escort_step(dt);
+        // The shrine falling on the step the player dies counts as dying.
+        if self.hold.step(self.player.x, self.player.y, dt) && !self.over {
+            self.over = true;
+            self.hold.fell = true;
+            self.event(EV_DEATH, POINT.0, POINT.1, 0.0);
+        }
         self.separate();
         self.move_shots(dt);
         self.reap();
@@ -456,6 +574,7 @@ impl Game {
                     self.hurt_enemy(i, dmg, dx / d * 240.0, dy / d * 240.0);
                 }
             }
+            self.formation_hit_arc(px, py, ax, ay, reach, cosw, dmg);
             self.player.attack = 0.25;
             let rot = fmath::atan2(ay, ax);
             let arcs = if lvl >= 5.0 { 2 } else { 1 };
@@ -551,6 +670,7 @@ impl Game {
                         self.hurt_enemy(i, dmg, ox / d * 160.0, oy / d * 160.0);
                     }
                 }
+                self.formation_hit_bead(bx, by, dmg);
             }
         }
 
@@ -570,6 +690,7 @@ impl Game {
                         self.hurt_enemy(i, dmg, dx / d * 520.0, dy / d * 520.0);
                     }
                 }
+                self.formation_hit_circle(px, py, radius, dmg);
                 self.add_fx(Fx {
                     x: px,
                     y: py - 10.0,
@@ -606,24 +727,33 @@ impl Game {
         (self.player.x + fmath::cos(a) * radius, self.player.y + fmath::sin(a) * radius * 0.8)
     }
 
-    fn spawn_ring(&self) -> f32 {
+    pub(crate) fn spawn_ring(&self) -> f32 {
         (self.view_w * self.view_w + self.view_h * self.view_h).sqrt() + 70.0
     }
 
-    fn spawn_enemy(&mut self, kind: u8) {
+    pub(crate) fn spawn_enemy(&mut self, kind: u8) {
         if self.enemies.len() >= MAX_ENEMIES {
             return;
         }
         let a = self.rng.range(0.0, TAU);
         let ring = self.spawn_ring();
+        let (x, y) = (self.player.x + fmath::cos(a) * ring, self.player.y + fmath::sin(a) * ring);
+        self.spawn_enemy_at(kind, x, y);
+    }
+
+    /// Add an enemy of `kind` at a world position, with the health it has at this time.
+    pub(crate) fn spawn_enemy_at(&mut self, kind: u8, x: f32, y: f32) {
+        if self.enemies.len() >= MAX_ENEMIES {
+            return;
+        }
         let k = &KINDS[kind as usize];
-        let scale = 1.0 + self.time / 120.0;
+        let scale = if self.mission == M_ARENA { self.arena.hp_scale() } else { 1.0 + self.time / 120.0 };
         let id = self.next_id;
         self.next_id = self.next_id.wrapping_add(1).max(1);
         let seed = self.rng.f();
         self.enemies.push(Enemy {
-            x: self.player.x + fmath::cos(a) * ring,
-            y: self.player.y + fmath::sin(a) * ring,
+            x,
+            y,
             kx: 0.0,
             ky: 0.0,
             hp: k.hp * scale,
@@ -637,8 +767,12 @@ impl Game {
     }
 
     fn spawn(&mut self, dt: f32) {
+        if self.mission == M_ARENA {
+            self.arena_step(dt);
+            return;
+        }
         let t = self.time;
-        let rate = 1.0 + t / 24.0;
+        let rate = (1.0 + t / 24.0) * self.formation_edge_scale();
         self.spawn_acc += rate * dt;
         while self.spawn_acc >= 1.0 {
             self.spawn_acc -= 1.0;
@@ -666,26 +800,62 @@ impl Game {
         let ring = self.spawn_ring();
         let far = ring * 1.8;
         let decay = fmath::exp(-8.0 * dt);
+        let escort = &self.escort;
         let mut hit: Option<f32> = None;
+        let hold = &mut self.hold;
         for e in self.enemies.iter_mut() {
+            // The pursuit target moves itself and never leaves its route.
+            if e.id == mission_pursuit::PURSUIT_ID {
+                continue;
+            }
             let k = &KINDS[e.kind as usize];
             let (dx, dy) = (px - e.x, py - e.y);
             let d = (dx * dx + dy * dy).sqrt().max(0.001);
-            if d > far {
+            // The boss of the boss mission steers itself.
+            let drive = self.boss.drive(e.id);
+            // A marked enemy of the vendetta mission follows the mission, not the horde.
+            let marked = self.vendetta.steer(e.id, e.x, e.y, px, py, k.speed);
+            if d > far && drive.is_none() && marked.is_none() {
                 // Left far behind: bring it back to the spawn ring on the
                 // other side so the crowd keeps closing in.
                 e.x = px + dx / d * ring;
                 e.y = py + dy / d * ring;
                 continue;
             }
-            e.x += (dx / d * k.speed + e.kx) * dt;
-            e.y += (dy / d * k.speed + e.ky) * dt;
+            // An enemy chases the player, or the escorted character when
+            // that one is nearer.
+            let (tx, ty) = escort.target(e.x, e.y, px, py);
+            let (cx, cy) = (tx - e.x, ty - e.y);
+            let cd = (cx * cx + cy * cy).sqrt().max(0.001);
+            // In the hold mission, the enemies sent after the shrine walk to
+            // it instead and face it.
+            let (hx, hy, hd, face) = match hold.target(e.id) {
+                Some((qx, qy)) => {
+                    let (ax, ay) = (qx - e.x, qy - e.y);
+                    let hd = (ax * ax + ay * ay).sqrt();
+                    hold.gnaw(hd, k.r, k.dmg * dt);
+                    (ax, ay, hd.max(0.001), ax)
+                }
+                None => (cx, cy, cd, dx),
+            };
+            // The boss and the marked enemies bring their own velocity.
+            let (vx, vy) = match (drive, marked) {
+                (Some(v), _) => {
+                    e.kx = 0.0;
+                    e.ky = 0.0;
+                    v
+                }
+                (None, Some(v)) => v,
+                (None, None) => (hx / hd * k.speed, hy / hd * k.speed),
+            };
+            e.x += (vx + e.kx) * dt;
+            e.y += (vy + e.ky) * dt;
             e.kx *= decay;
             e.ky *= decay;
             e.flash = (e.flash - dt * 6.0).max(0.0);
             e.bead_cd = (e.bead_cd - dt).max(0.0);
-            if dx.abs() > 4.0 {
-                e.face = dx.signum();
+            if face.abs() > 4.0 {
+                e.face = face.signum();
             }
             if d < k.r + 10.0 {
                 hit = Some(hit.map_or(k.dmg, |h: f32| h.max(k.dmg)));
@@ -784,6 +954,10 @@ impl Game {
             }
         }
         for (e, p) in self.enemies.iter_mut().zip(self.push.iter()) {
+            // The boss is not shoved by the crowd.
+            if self.boss.is(e.id) {
+                continue;
+            }
             e.x += p.0 * 0.6;
             e.y += p.1 * 0.6;
         }
@@ -816,6 +990,8 @@ impl Game {
                 self.shots[s].last = self.enemies[i].id;
                 self.shots[s].pierce -= 1;
                 self.hurt_enemy(i, dmg, vx * 0.3, vy * 0.3);
+            } else if self.formation_hit_shot(x, y, dmg) {
+                self.shots[s].pierce = 0;
             }
             if self.shots[s].life <= 0.0 || self.shots[s].pierce <= 0 {
                 self.shots.swap_remove(s);
@@ -993,7 +1169,18 @@ impl Game {
     // ---------------------------------------------------------------- draw
 
     #[allow(clippy::too_many_arguments)]
-    fn put(&mut self, x: f32, y: f32, hw: f32, hh: f32, rot: f32, part: f32, flash: f32, seed: f32, color: [f32; 4]) {
+    pub(crate) fn put(
+        &mut self,
+        x: f32,
+        y: f32,
+        hw: f32,
+        hh: f32,
+        rot: f32,
+        part: f32,
+        flash: f32,
+        seed: f32,
+        color: [f32; 4],
+    ) {
         if self.inst.len() >= MAX_INST {
             return;
         }
@@ -1008,6 +1195,11 @@ impl Game {
     fn build(&mut self) {
         self.inst.clear();
         self.draw_ground();
+        self.draw_hold_ground();
+        if self.mission == M_ESCAPE {
+            self.escape_draw();
+        }
+        self.vendetta_draw_ground();
 
         // Ground-level effects and pickups.
         for i in 0..self.fx.len() {
@@ -1030,6 +1222,12 @@ impl Game {
                 self.put(x, y - 8.0, s * 0.8, s, rot, P_GEM, 0.0, seed, c);
             }
         }
+        self.boss_draw_ground();
+
+        self.draw_formation();
+        let mut canvas = Canvas { inst: &mut self.inst, cam: self.cam, view: (self.view_w, self.view_h) };
+        self.retrieval.draw_ground(&mut canvas, self.anim);
+        self.draw_escort_goal();
 
         // Characters, sorted by depth.
         self.order.clear();
@@ -1037,15 +1235,22 @@ impl Game {
             self.order.push((e.y, i as u16));
         }
         self.order.push((self.player.y, u16::MAX));
+        if self.escort.active && !self.escort.fallen {
+            self.order.push((self.escort.y, u16::MAX - 1));
+        }
         self.order.sort_unstable_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(core::cmp::Ordering::Equal));
         for n in 0..self.order.len() {
             let idx = self.order[n].1;
             if idx == u16::MAX {
                 self.draw_player();
+            } else if idx == u16::MAX - 1 {
+                self.draw_escort();
             } else {
                 self.draw_enemy(idx as usize);
             }
         }
+
+        self.vendetta_draw_marks();
 
         // Things in the air.
         for i in 0..self.shots.len() {
@@ -1058,11 +1263,18 @@ impl Game {
             let (x, y) = self.bead_pos(k, n);
             self.put(x, y - 24.0, 9.0, 9.0, 0.0, P_BEAD, 0.0, k as f32 * 0.13, [0.30, 0.66, 0.50, 1.0]);
         }
+        self.boss_draw_air();
         for i in 0..self.fx.len() {
             if self.fx[i].top {
                 self.draw_fx(i);
             }
         }
+        self.draw_formation_marker();
+        let mut canvas = Canvas { inst: &mut self.inst, cam: self.cam, view: (self.view_w, self.view_h) };
+        self.retrieval.draw_top(&mut canvas, (self.player.x, self.player.y), self.anim);
+        self.pursuit_draw_markers();
+        self.draw_escort_markers();
+        self.draw_hold_marker();
     }
 
     fn draw_fx(&mut self, i: usize) {
@@ -1124,6 +1336,13 @@ impl Game {
 
     fn draw_enemy(&mut self, i: usize) {
         let e = self.enemies[i];
+        if e.id == mission_pursuit::PURSUIT_ID {
+            self.pursuit_draw_target(&e);
+            return;
+        }
+        if self.boss.is(e.id) {
+            return self.boss_draw_body(i);
+        }
         let k = &KINDS[e.kind as usize];
         // Two poses, flipped back and forth. That is the whole walk cycle.
         let pose = ((self.anim * k.rate + e.seed * 7.0).floor() as i32) & 1;
@@ -1196,6 +1415,7 @@ impl Game {
     /// `content/game.toml`.
     fn write_state(&mut self) {
         let (goal, progress) = (self.goal(), self.progress());
+        let boss_wait = self.boss_wait();
         let p = &self.player;
         let s = &mut self.state;
         s[S_HP] = p.hp;
@@ -1218,11 +1438,30 @@ impl Game {
         s[S_GOAL] = goal;
         s[S_PROGRESS] = progress;
         s[S_WON] = self.won as u8 as f32;
+        s[S_CARRIED] = self.retrieval.carried() as f32;
+        s[S_POINT_HP] = self.hold.hp;
+        s[S_POINT_MAX] = POINT_HP;
+        s[S_POINT_FELL] = self.hold.fell as u8 as f32;
+        s[S_EXIT_X] = self.escape.x;
+        s[S_EXIT_Y] = self.escape.y;
+        s[S_EXIT_DIST] = self.escape.dist(p.x, p.y);
+        s[S_BOSS_WAIT] = boss_wait;
         for id in 0..N_UPGRADES {
             s[S_UPGRADE0 + id] = self.up[id] as f32;
         }
+        self.pursuit_write_state();
+        self.escort_state();
     }
 }
+
+#[path = "mission_boss.rs"]
+mod mission_boss;
+#[path = "mission_escort.rs"]
+pub mod mission_escort;
+#[path = "mission_pursuit.rs"]
+mod mission_pursuit;
+#[path = "mission_vendetta.rs"]
+mod mission_vendetta;
 
 #[cfg(test)]
 #[path = "game_tests.rs"]

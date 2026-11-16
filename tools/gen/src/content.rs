@@ -594,6 +594,8 @@ pub fn render_rust(c: &Content) -> String {
     }
     writeln!(o, "pub const N_MISSIONS: usize = {};", c.missions.len()).unwrap();
     let goals: Vec<String> = c.missions.iter().map(|m| format!("{}.0", m.goal)).collect();
+    // One line however many missions there are, so rustfmt must leave it alone.
+    o.push_str("#[rustfmt::skip]\n");
     writeln!(o, "pub const MISSION_GOAL: [f32; N_MISSIONS] = [{}];", goals.join(", ")).unwrap();
 
     o.push_str("\n// HUD state buffer: size and the index of each field.\n");

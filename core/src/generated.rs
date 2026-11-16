@@ -53,11 +53,21 @@ pub const EV_WIN: f32 = 12.0;
 pub const M_ENDLESS: usize = 0;
 pub const M_SURVIVE: usize = 1;
 pub const M_KILLS: usize = 2;
-pub const N_MISSIONS: usize = 3;
-pub const MISSION_GOAL: [f32; N_MISSIONS] = [0.0, 300.0, 1500.0];
+pub const M_FORMATION: usize = 3;
+pub const M_ARENA: usize = 4;
+pub const M_RETRIEVAL: usize = 5;
+pub const M_PURSUIT: usize = 6;
+pub const M_ESCORT: usize = 7;
+pub const M_HOLD: usize = 8;
+pub const M_ESCAPE: usize = 9;
+pub const M_BOSS: usize = 10;
+pub const M_VENDETTA: usize = 11;
+pub const N_MISSIONS: usize = 12;
+#[rustfmt::skip]
+pub const MISSION_GOAL: [f32; N_MISSIONS] = [0.0, 300.0, 1500.0, 5.0, 10.0, 3.0, 3000.0, 21000.0, 300.0, 18000.0, 12000.0, 6.0];
 
 // HUD state buffer: size and the index of each field.
-pub const STATE_FLOATS: usize = 32;
+pub const STATE_FLOATS: usize = 60;
 pub const S_HP: usize = 0;
 pub const S_MAX_HP: usize = 1;
 pub const S_XP: usize = 2;
@@ -77,5 +87,18 @@ pub const S_MISSION: usize = 26;
 pub const S_GOAL: usize = 27;
 pub const S_PROGRESS: usize = 28;
 pub const S_WON: usize = 29;
+pub const S_ESCAPE: usize = 32;
+pub const S_ESCAPED: usize = 33;
+pub const S_CARRIED: usize = 36;
+pub const S_ESCORT_HP: usize = 44;
+pub const S_ESCORT_MAX_HP: usize = 45;
+pub const S_ESCORT_FELL: usize = 46;
+pub const S_POINT_HP: usize = 48;
+pub const S_POINT_MAX: usize = 49;
+pub const S_POINT_FELL: usize = 50;
+pub const S_EXIT_X: usize = 52;
+pub const S_EXIT_Y: usize = 53;
+pub const S_EXIT_DIST: usize = 54;
+pub const S_BOSS_WAIT: usize = 56;
 
 pub const INK: [f32; 3] = [0.17, 0.15, 0.13];
