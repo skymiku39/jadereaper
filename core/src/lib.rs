@@ -8,6 +8,7 @@
 //! - state: `STATE_FLOATS` floats for the HUD (layout in `content/game.toml`)
 //! - events: `jr_event_count()` x 4 floats `[type, x, y, value]` for sound
 
+pub mod accept;
 pub mod defs;
 pub mod fmath;
 pub mod game;
@@ -44,14 +45,15 @@ fn tune() -> &'static mut [f32; defs::N_TUNES] {
 }
 
 /// Start a new run of a mission (an id from `[[mission]]` in the content file),
-/// with the tunes set by `jr_tune` since the last `jr_tune_reset`.
+/// with the tunes set by `jr_tune` since the last `jr_tune_reset`. The run
+/// opens with the accept phase (see `accept.rs`) unless its time is tuned to 0.
 #[no_mangle]
 pub extern "C" fn jr_start(seed: u32, mission: u32) {
     jr_reset(seed);
     for (id, value) in tune().iter().enumerate() {
         g().set_tune(id, *value);
     }
-    g().start(mission as usize);
+    g().brief(mission as usize);
 }
 
 /// Change one tune (an id from `[[tune]]`) for the runs started from now on.

@@ -222,10 +222,14 @@ async function boot() {
         const ev = new Float32Array(core.memory.buffer, core.jr_events_ptr(), count * 4);
         for (let i = 0; i < count; i++) audio.play(ev[i * 4]);
       }
+      const accepting = s[STATE.ACCEPTING] === 1;
       ui.hud({
         hp: s[STATE.HP], maxHp: s[STATE.MAX_HP], xp: s[STATE.XP], xpNext: s[STATE.XP_NEXT],
         level: s[STATE.LEVEL], time: s[STATE.TIME], kills: s[STATE.KILLS], enemies: s[STATE.ENEMIES],
-        upgrades: upgradeLevels(s), mission, goal: s[STATE.GOAL], progress: s[STATE.PROGRESS],
+        // Until the mission is accepted the core plays no mission, so the HUD shows none either.
+        upgrades: upgradeLevels(s), mission: accepting ? MISSIONS[MISSION_IDS.endless] : mission,
+        accept: accepting ? { held: s[STATE.ACCEPT_HELD], need: s[STATE.ACCEPT_NEED] } : null,
+        goal: s[STATE.GOAL], progress: s[STATE.PROGRESS],
         // Values of single missions; the HUD ignores them in the others.
         carried: s[STATE.CARRIED], escape: s[STATE.ESCAPE], bossWait: s[STATE.BOSS_WAIT],
         escortHp: s[STATE.ESCORT_HP], escortMaxHp: s[STATE.ESCORT_MAX_HP],
