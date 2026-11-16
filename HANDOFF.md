@@ -8,28 +8,31 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### feat/fixed-step
+### feat/mission-survive
 
-- Task: the first slice of item 1 of `Ranked work`: a fixed time step and a deterministic core. Replays and the balance tool are later slices.
-- PR: https://github.com/skymiku39/jadereaper/pull/3, based on `main`. The user approved pushing it and a rebase merge once CI passes, on 2026-11-16 (P-19).
-- Code checkpoint: see `git log`; the branch is cut from `main` at ef354f1 (PR 1 and PR 2 merged, all four workflows green there).
-- Changed: `Game::update(dt)` now collects real time and advances in whole steps of `TICK` (1/60 s) through the new public `Game::tick()`, then `Game::present()` rebuilds the instances and HUD state. A frame time within 12% of one step counts as exactly one. New `Game::hash()`, `scripted_run()` and the exports `jr_ticks`, `jr_state_hash` and `jr_scripted_run`. New `core/src/fmath.rs` replaces every standard `sin`, `cos`, `exp`, `powf`, `powi` and `atan2` in the core, because the native and wasm maths libraries disagreed and the same run diverged. New `tools/determinism.mjs` (`npm run determinism`) and `core/examples/scripted_run.rs` compare a four-minute scripted run on both targets for four seeds; the `Core` workflow runs it.
-- Verification on 2026-11-16 (Rust 1.100.0, Node 24.22.3, Linux x86-64 under WSL): format, clippy (native and wasm), `cargo test` (49 unit tests, 16 content tests), `./build.sh` (wasm is now 63,017 bytes), `npm run determinism` (all four seeds match) and `npm run smoke` passed. A ten-second headless play measured 60.0 steps per second, the run clock matched real time, and there were no console errors. Not verified: how it looks. Headless screenshots show the HUD but a blank canvas, so nobody has watched the game move since this change; the user should play it once. Also not tried: displays faster than 60 Hz, where motion advances on some frames only.
-- Next action: merge PR 3 once CI passes, then the replay slice. The user has still to play the game once and say whether it looks right.
+- Task: item 1 of `Ranked work`: the mission framework and the first mission, "survive a time". The user asked on 2026-11-16 to do this before replays and the balance tool.
+- PR: none. Not pushed.
+- Code checkpoint: see `git log`; the branch is cut from `main` at 802359b (PR 3, the fixed time step, merged there).
+- Changed: `content/game.toml` gains a `[[mission]]` table (`endless`, and `survive` with a goal of 300 s), the event `win` and the state fields `mission`, `goal`, `progress` and `won`; `tools/gen` reads the table and writes `M_*`, `N_MISSIONS` and `MISSION_GOAL` for Rust and `MISSIONS` and `MISSION_IDS` for JavaScript. In the core, `jr_start(seed, mission)` starts a mission, `Game::mission_won` holds each mission's win rule and the run stops when `won` is set. In the host, the title screen builds one start button per mission, the HUD counts down in a timed mission, a new "mission complete" screen shows the result, and the save keeps tries and wins per mission (endless keeps its best time, kills and level). The Chinese fonts were re-subset for the new text.
+- Verification on 2026-11-16 (Rust 1.100.0, Node 24.22.3, Linux x86-64 under WSL): format, clippy, `cargo test` (53 unit tests, 16 content tests), `./build.sh`, `tools/check-fonts.sh`, `npm run determinism` and `npm run smoke` passed. A headless play of the survive mission checked both endings: death shows the game-over screen with the mission named and records a try; with the goal temporarily set to 10 s, the win screen appears at 0:10, a win is saved and the title button then reads "已完成 1 次". Screenshots of the title and win screens were looked at. Not verified: a person playing the full five minutes, the game view itself (headless screenshots show a blank canvas), gamepad navigation of the new buttons, and the English text on screen.
+- Finding for the user: the survive mission can be won by only running away. In a native simulation of 40 seeds, a bot that moves away from nearby enemies and always takes the first card won 40 of 40 at a mean level of 1.4; a bot walking in circles won 0 of 40 and lasted 102 s on average. The arena has no edge and enemies are slower than the player. The mission needs pressure that running cannot escape (a bounded arena, spawns that surround, faster chasers); recorded in `docs/design.md` 4.2.1 as open.
+- Still open from PR 3: the user has not yet said whether the game looks right at the fixed step.
+- Next action: P-20, then the user's call on the finding above, then item 2 of `Ranked work`.
+- Pending: **P-20** push this branch to `origin`, open a PR and merge it once CI passes. Why: pushing and merging need the user's go-ahead.
 
 ## Ranked work
 
-The working order agreed with the user on 2026-11-16. Details of each roadmap step are in `ROADMAP.md`; mission types are in `docs/design.md`, section 4.2.1.
+The working order agreed with the user on 2026-11-16, with missions moved ahead of replays the same day. Details of each roadmap step are in `ROADMAP.md`; mission types are in `docs/design.md`, section 4.2.1.
 
-1. Roadmap step 3 in three slices: the fixed time step (on `feat/fixed-step`), then input recording with replay playback, then the headless balance tool.
-2. Mission framework: objective, win condition, result screen, mission picker on the title screen. First mission: survive a time.
-3. One or two more mission prototypes (kill a count, then the user's pick).
+1. Mission framework and the first mission, survive a time (on `feat/mission-survive`).
+2. One or two more mission prototypes (kill a count, then the user's pick).
+3. The rest of roadmap step 3: input recording with replay playback, then the headless balance tool. The fixed time step is done (PR 3).
 4. Data-driven content rewrite (roadmap step 1), then martial arts × magic elements and reactions. Needs the user's answers first: what each of the four elements does, which pairs react, and how many martial arts can be held at once (design document, open items 2 and 4).
 5. Remaining mission prototypes, the game feel pass (roadmap step 2), then the rest of roadmap step 4.
 6. English UI fonts to match the Chinese set.
 7. Touch controls and a WebGL2 fallback (roadmap step 6); scaling to thousands of enemies (roadmap step 7).
 
-Done: the rest of CI (roadmap step 5), merged as PR 2 on 2026-11-16.
+Done: the rest of CI (roadmap step 5), merged as PR 2, and the fixed time step, merged as PR 3, both on 2026-11-16.
 
 ## Pending
 
