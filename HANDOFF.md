@@ -6,32 +6,35 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 ## In progress
 
-### ci/core-checks
+Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-- Task: item 1 of `Ranked work`, the rest of CI.
-- PR: https://github.com/skymiku39/jadereaper/pull/2, based on `main`; rebase merge approved by the user on 2026-11-16 once CI passes (P-18). Its parent `chore/solo-housekeeping` merged as PR 1 on 2026-11-16 (`main` at 7f3cf66, P-15 done), and this branch was rebased onto it.
-- Code checkpoint: see `git log`; the branch sits on `main` at 7f3cf66.
-- Changed: a new `Core` workflow (`.github/workflows/core.yml`) runs format, clippy, the tests of `core/` and `tools/gen/`, `./build.sh`, a check that the build left no committed file changed, and `node --check` on every script. `rust-toolchain.toml` pins Rust 1.100.0 with rustfmt, clippy and the wasm target. `rustfmt.toml` sets `max_width = 120` and `use_small_heuristics = "Max"`, chosen because they change the existing compact code least. Both crates were formatted once and three clippy findings fixed (`Rng::next` is now `Rng::next_u32`). The Fonts workflow now triggers on the three font tool files instead of all of `tools/`. The smoke test connects to 127.0.0.1.
-- Verification on 2026-11-16 (Rust 1.100.0, Node 24.22.3, Linux x86-64 under WSL): format check, clippy with `-D warnings` (native and wasm targets), `cargo test` (42 and 16 passed), `./build.sh` and `npm run smoke` (WebGPU available, played 3 s) all passed. A clean rebuild gave the same wasm bytes twice on this machine. The first `Core` run on GitHub (PR 2, before the rebase) passed every step: the runner rebuilt the wasm (69725 bytes) and it matched the committed file, so builds are the same across machines.
-- Environment: rustfmt and clippy come with the pinned toolchain; the smoke test runs locally since the user installed Chromium's system libraries; `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper`. Node is still 24 locally against the 26 the repository asks for; everything passed on 24.
-- Next action: merge PR 2 once CI passes on the rebased branch, then item 2 of `Ranked work`.
+### feat/fixed-step
+
+- Task: the first slice of item 1 of `Ranked work`: a fixed time step and a deterministic core. Replays and the balance tool are later slices.
+- PR: none. Not pushed.
+- Code checkpoint: see `git log`; the branch is cut from `main` at ef354f1 (PR 1 and PR 2 merged, all four workflows green there).
+- Changed: `Game::update(dt)` now collects real time and advances in whole steps of `TICK` (1/60 s) through the new public `Game::tick()`, then `Game::present()` rebuilds the instances and HUD state. A frame time within 12% of one step counts as exactly one. New `Game::hash()`, `scripted_run()` and the exports `jr_ticks`, `jr_state_hash` and `jr_scripted_run`. New `core/src/fmath.rs` replaces every standard `sin`, `cos`, `exp`, `powf`, `powi` and `atan2` in the core, because the native and wasm maths libraries disagreed and the same run diverged. New `tools/determinism.mjs` (`npm run determinism`) and `core/examples/scripted_run.rs` compare a four-minute scripted run on both targets for four seeds; the `Core` workflow runs it.
+- Verification on 2026-11-16 (Rust 1.100.0, Node 24.22.3, Linux x86-64 under WSL): format, clippy (native and wasm), `cargo test` (49 unit tests, 16 content tests), `./build.sh` (wasm is now 63,017 bytes), `npm run determinism` (all four seeds match) and `npm run smoke` passed. A ten-second headless play measured 60.0 steps per second, the run clock matched real time, and there were no console errors. Not verified: how it looks. Headless screenshots show the HUD but a blank canvas, so nobody has watched the game move since this change; the user should play it once. Also not tried: displays faster than 60 Hz, where motion advances on some frames only.
+- Next action: P-19, then the replay slice.
+- Pending: **P-19** push this branch to `origin`, open a PR and merge it once CI passes. Why: pushing and merging need the user's go-ahead.
 
 ## Ranked work
 
 The working order agreed with the user on 2026-11-16. Details of each roadmap step are in `ROADMAP.md`; mission types are in `docs/design.md`, section 4.2.1.
 
-1. The rest of CI (roadmap step 5): run `cargo test` in CI, fail on a stale wasm or stale generated files, `cargo fmt --check`, `cargo clippy`, `node --check`. With it, two small fixes: run the Fonts workflow only when font tools or text change, and make the smoke test connect to 127.0.0.1 instead of localhost.
-2. Fixed time step, replays and the headless balance tool (roadmap step 3).
-3. Mission framework: objective, win condition, result screen, mission picker on the title screen. First mission: survive a time.
-4. One or two more mission prototypes (kill a count, then the user's pick).
-5. Data-driven content rewrite (roadmap step 1), then martial arts × magic elements and reactions. Needs the user's answers first: what each of the four elements does, which pairs react, and how many martial arts can be held at once (design document, open items 2 and 4).
-6. Remaining mission prototypes, the game feel pass (roadmap step 2), then the rest of roadmap step 4.
-7. English UI fonts to match the Chinese set.
-8. Touch controls and a WebGL2 fallback (roadmap step 6); scaling to thousands of enemies (roadmap step 7).
+1. Roadmap step 3 in three slices: the fixed time step (on `feat/fixed-step`), then input recording with replay playback, then the headless balance tool.
+2. Mission framework: objective, win condition, result screen, mission picker on the title screen. First mission: survive a time.
+3. One or two more mission prototypes (kill a count, then the user's pick).
+4. Data-driven content rewrite (roadmap step 1), then martial arts × magic elements and reactions. Needs the user's answers first: what each of the four elements does, which pairs react, and how many martial arts can be held at once (design document, open items 2 and 4).
+5. Remaining mission prototypes, the game feel pass (roadmap step 2), then the rest of roadmap step 4.
+6. English UI fonts to match the Chinese set.
+7. Touch controls and a WebGL2 fallback (roadmap step 6); scaling to thousands of enemies (roadmap step 7).
+
+Done: the rest of CI (roadmap step 5), merged as PR 2 on 2026-11-16.
 
 ## Pending
 
 - **P-16** Delete the old local branches `docs/game-design`, `feat/content-generator`, `test/weapon-behaviour`, `integrate/own-version` and `docs/own-pages-url`, the worktrees under `.worktrees/`, and the remote branches `docs/game-design`, `test/weapon-behaviour` and `docs/own-pages-url` on `skymiku39/jadereaper`. Their code is on `main` (cherry-picked, so the first three do not show as merged); only their own handoff commits would be lost. Why: deleting branches needs approval. Blocks: nothing.
-- **P-17** The user's answer on the four suggested mission types in `docs/design.md` 4.2.1 (break the formation, pursuit, retrieval, arena waves). Blocks: nothing until item 6 of `Ranked work`.
+- **P-17** The user's answer on the four suggested mission types in `docs/design.md` 4.2.1 (break the formation, pursuit, retrieval, arena waves). Blocks: nothing until item 5 of `Ranked work`.
 
 Closed on 2026-11-16: P-02 (roadmap issues) is withdrawn, since issues are off and `ROADMAP.md` is the plan; P-10 is obsolete, the backup branches no longer exist; P-12 is obsolete, that change merged upstream as #26; P-14 is done, `main` on the user's repository is at 82e268d; P-15 is done, `chore/solo-housekeeping` merged as PR 1.
