@@ -57,6 +57,7 @@ The UI is HTML and CSS over the canvas: torn-edge paper sheets, tags and cards, 
 | `core/src/defs.rs` | Instance format, enemy table, re-exports the generated ids |
 | `core/src/generated.rs` | Generated from `content/game.toml` |
 | `core/src/game.rs` | State, simulation step, puppet posing, instance building |
+| `core/src/fmath.rs` | Float functions that give the same result natively and in wasm |
 | `core/src/lib.rs` | The `jr_*` functions exported to JavaScript, and tests |
 | `wasm/` | Built core |
 | `src/main.js` | Loads the core, frame loop, game modes |
@@ -87,7 +88,7 @@ The scripts need Node 26 (see `.node-version`) and the dev dependencies that `np
 
 ## How core and host talk
 
-Each frame the host calls `jr_input`, then `jr_update(dt)`, and reads three buffers out of wasm memory:
+Each frame the host calls `jr_input`, then `jr_update(dt)`. The core turns that real time into whole simulation steps of 1/60 s, so the same seed and inputs always play the same run. The host then reads three buffers out of wasm memory:
 
 - Instances: 12 floats per paper part (`x, y, half width, half height, rotation, part id, flash, seed, r, g, b, a`). These bytes go to the GPU unchanged.
 - State: 32 floats for the HUD (health, experience, time, offered upgrades and so on). Indices are the `[[state]]` entries in `content/game.toml`, generated as `STATE` in JavaScript and `S_*` in Rust.

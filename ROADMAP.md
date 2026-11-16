@@ -13,7 +13,7 @@ Known weaknesses, which the steps below address:
 - **Content is hardcoded.** All four weapons live in one `Game::weapons` function in `core/src/game.rs`, each with its own timer field on `Game`. Adding a weapon means editing the struct, that function, the draw code and `src/data.js`.
 - **Only ids are data so far.** Part, upgrade and event ids and the state indices are generated from `content/game.toml` (the first slice of step 1, done). Enemy numbers, weapon behaviour and puppet rigs are still code.
 - **Puppets are posed in code.** `draw_player` and `draw_enemy` hardcode part offsets, tilts and sizes. A custom image can replace a part's picture but not how a character is assembled or how it moves.
-- **The time step is variable.** `jr_update(dt)` advances by the real frame time, so the same seed and inputs do not replay the same run. This blocks replays and makes balance testing noisy.
+- **Runs cannot be recorded yet.** The core steps at a fixed 60 Hz and plays the same run natively and in wasm (the first slice of step 3, done), but nothing records inputs, plays a replay back or simulates runs in bulk.
 - **Weapon hits are brute force.** The spatial grid is only used for enemy separation; every weapon loops over every enemy. Fine at the 500-enemy cap, not beyond.
 - **A run has no shape.** One endless arena, no win condition, the elite is just a big brute with no attacks, and nothing carries over between runs.
 - **Balance is untested by people.** Numbers were tuned only against a bot that walks in circles, which survived about 2 minutes 20 seconds.
