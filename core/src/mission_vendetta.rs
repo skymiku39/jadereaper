@@ -184,6 +184,8 @@ impl Game {
         }
         if let Some((x, y, ux, uy)) = self.vendetta.pointer(self.cam, (self.view_w, self.view_h)) {
             self.put(x, y, 16.0, 16.0, 0.0, P_RING, 0.0, 0.3, RED);
+            let place = self.vendetta.place;
+            self.point(place.0, place.1);
             // A trail of beads toward the middle of the screen shows the direction.
             for s in 1..4 {
                 let off = s as f32 * 20.0 + 6.0;

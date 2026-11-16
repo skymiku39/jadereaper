@@ -262,6 +262,7 @@ impl Game {
         if dx.abs() <= mx && dy.abs() <= my {
             return;
         }
+        self.point(self.cam.0 + dx, self.cam.1 + dy);
         // Pull the point back along the line from the screen centre until it
         // sits inside the margin.
         let t = (mx / dx.abs().max(0.001)).min(my / dy.abs().max(0.001));

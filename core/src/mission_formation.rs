@@ -296,6 +296,7 @@ impl Game {
         if dx.abs() < self.view_w - 20.0 && dy.abs() < self.view_h - 20.0 {
             return;
         }
+        self.point(self.cam.0 + dx, self.cam.1 + dy + 40.0);
         // Slide along the line from the centre to the node until it meets the
         // edge of the view, kept inside by a margin.
         let m = 52.0;

@@ -154,6 +154,9 @@ pub struct Game {
     pursuit: mission_pursuit::Pursuit,
     pub inst: Vec<Inst>,
     pub events: Vec<[f32; 4]>,
+    /// What the edge-of-screen markers of this frame point at, for the host to
+    /// label: `[x, y, distance from the player, 0]` in world units. Rebuilt by `build`.
+    pub pointers: Vec<[f32; 4]>,
     pub state: [f32; STATE_FLOATS],
     // Scratch buffers for the spatial grid and draw sorting.
     cell_start: Vec<u32>,
@@ -264,6 +267,7 @@ impl Game {
             pursuit: mission_pursuit::Pursuit::default(),
             inst: Vec::with_capacity(MAX_INST),
             events: Vec::with_capacity(256),
+            pointers: Vec::with_capacity(16),
             state: [0.0; STATE_FLOATS],
             cell_start: vec![0; BUCKETS + 1],
             cell_cursor: vec![0; BUCKETS + 1],
@@ -1215,6 +1219,7 @@ impl Game {
 
     fn build(&mut self) {
         self.inst.clear();
+        self.pointers.clear();
         self.draw_ground();
         self.draw_hold_ground();
         if self.mission == M_ESCAPE {
@@ -1246,7 +1251,12 @@ impl Game {
         self.boss_draw_ground();
 
         self.draw_formation();
-        let mut canvas = Canvas { inst: &mut self.inst, cam: self.cam, view: (self.view_w, self.view_h) };
+        let mut canvas = Canvas {
+            inst: &mut self.inst,
+            points: &mut self.pointers,
+            cam: self.cam,
+            view: (self.view_w, self.view_h),
+        };
         self.retrieval.draw_ground(&mut canvas, self.anim);
         self.draw_escort_goal();
 
@@ -1291,11 +1301,26 @@ impl Game {
             }
         }
         self.draw_formation_marker();
-        let mut canvas = Canvas { inst: &mut self.inst, cam: self.cam, view: (self.view_w, self.view_h) };
+        let mut canvas = Canvas {
+            inst: &mut self.inst,
+            points: &mut self.pointers,
+            cam: self.cam,
+            view: (self.view_w, self.view_h),
+        };
         self.retrieval.draw_top(&mut canvas, (self.player.x, self.player.y), self.anim);
         self.pursuit_draw_markers();
         self.draw_escort_markers();
         self.draw_hold_marker();
+        // The host shows how far away each marked thing is.
+        let (px, py) = (self.player.x, self.player.y);
+        for p in self.pointers.iter_mut() {
+            p[2] = ((p[0] - px) * (p[0] - px) + (p[1] - py) * (p[1] - py)).sqrt();
+        }
+    }
+
+    /// Note that an edge-of-screen marker drawn this frame points at this world position.
+    pub(crate) fn point(&mut self, x: f32, y: f32) {
+        self.pointers.push([x, y, 0.0, 0.0]);
     }
 
     fn draw_fx(&mut self, i: usize) {

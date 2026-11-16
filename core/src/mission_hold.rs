@@ -164,6 +164,7 @@ impl Game {
         if dx.abs() < self.view_w + 20.0 && dy.abs() < self.view_h + 20.0 {
             return;
         }
+        self.point(POINT.0, POINT.1);
         // Scale the direction so it ends on the inset screen rectangle.
         let k = (hw / dx.abs().max(0.001)).min(hh / dy.abs().max(0.001));
         let (mx, my) = (self.cam.0 + dx * k, self.cam.1 + dy * k);

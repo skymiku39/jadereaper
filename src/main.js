@@ -236,6 +236,13 @@ async function boot() {
           w: view.w, h: view.h, dist: s[STATE.EXIT_DIST],
         },
       });
+      // What the edge markers point at, for the distance tags beside them.
+      const marks = new Float32Array(core.memory.buffer, core.jr_pointers_ptr(), core.jr_pointer_count() * 4);
+      const tags = [];
+      for (let i = 0; i < marks.length; i += 4) {
+        tags.push({ dx: marks[i] - s[STATE.CAM_X], dy: marks[i + 1] - s[STATE.CAM_Y], dist: marks[i + 2] });
+      }
+      ui.pointers(tags, view);
       const run = { time: s[STATE.TIME], kills: s[STATE.KILLS], level: s[STATE.LEVEL] };
       if (s[STATE.WON]) {
         mode = 'won';

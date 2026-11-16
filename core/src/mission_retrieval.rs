@@ -199,6 +199,8 @@ impl Retrieval {
 /// Where the mission draws to: the game's instance list and the camera view.
 pub struct Canvas<'a> {
     pub inst: &'a mut Vec<Inst>,
+    /// The game's list of what the edge markers point at.
+    pub points: &'a mut Vec<[f32; 4]>,
     pub cam: (f32, f32),
     /// Half extents of the visible area in world units.
     pub view: (f32, f32),
@@ -223,6 +225,7 @@ impl Canvas<'_> {
         if dx.abs() <= ex && dy.abs() <= ey {
             return;
         }
+        self.points.push([target.0, target.1, 0.0, 0.0]);
         let s = (ex / dx.abs().max(0.001)).min(ey / dy.abs().max(0.001));
         let at = (self.cam.0 + dx * s, self.cam.1 + dy * s);
         let rot = fmath::atan2(dy, dx) + TAU * 0.25;
