@@ -17,6 +17,17 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 - Next action: P-15, then start item 1 of `Ranked work`.
 - Pending: **P-15** push this branch to `origin`, open a PR on `skymiku39/jadereaper` and merge it once CI passes. Why: pushing and merging need the user's go-ahead. Blocks: the new process and mission list reaching `main`.
 
+### ci/core-checks
+
+- Task: item 1 of `Ranked work`, the rest of CI. Stacked on `chore/solo-housekeeping`, so that branch merges first.
+- PR: none. Not pushed.
+- Code checkpoint: see `git log`; the branch is cut from `chore/solo-housekeeping`.
+- Changed: a new `Core` workflow (`.github/workflows/core.yml`) runs format, clippy, the tests of `core/` and `tools/gen/`, `./build.sh`, a check that the build left no committed file changed, and `node --check` on every script. `rust-toolchain.toml` pins Rust 1.100.0 with rustfmt, clippy and the wasm target. `rustfmt.toml` sets `max_width = 120` and `use_small_heuristics = "Max"`, chosen because they change the existing compact code least. Both crates were formatted once and three clippy findings fixed (`Rng::next` is now `Rng::next_u32`). The Fonts workflow now triggers on the three font tool files instead of all of `tools/`. The smoke test connects to 127.0.0.1.
+- Verification on 2026-11-16 (Rust 1.100.0, Node 24.22.3, Linux x86-64 under WSL): format check, clippy with `-D warnings` (native and wasm targets), `cargo test` (42 and 16 passed), `./build.sh` and `npm run smoke` (WebGPU available, played 3 s) all passed. A clean rebuild gave the same wasm bytes twice on this machine. Not verified: the `Core` workflow itself has never run, and whether the runner builds the same wasm bytes as this machine is only known once it does. If it does not, the stale-build step fails on the first PR and needs a look.
+- This supersedes the "Environment gaps" line in the `chore/solo-housekeeping` subsection: rustfmt and clippy come with the pinned toolchain, and the smoke test runs locally since the user installed Chromium's system libraries. Node is still 24 locally against the 26 the repository asks for; everything passed on 24.
+- Next action: P-18, then item 2 of `Ranked work`.
+- Pending: **P-18** push this branch to `origin` after P-15, open a PR on `skymiku39/jadereaper` and merge it once CI passes. Why: pushing and merging need the user's go-ahead. Blocks: CI coverage for all later work.
+
 ## Ranked work
 
 The working order agreed with the user on 2026-11-16. Details of each roadmap step are in `ROADMAP.md`; mission types are in `docs/design.md`, section 4.2.1.
