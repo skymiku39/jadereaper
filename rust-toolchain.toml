@@ -1,0 +1,8 @@
+# One pinned toolchain for local builds and CI, so the committed wasm can be
+# compared byte for byte with a fresh build. Raise the version on purpose and
+# commit the rebuilt wasm with it.
+[toolchain]
+channel = "1.100.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]
+targets = ["wasm32-unknown-unknown"]

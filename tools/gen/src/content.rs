@@ -93,7 +93,7 @@ pub fn parse(src: &str) -> Result<Vec<Table>, String> {
         if !is_name(key) {
             return Err(format!("line {line}: bad key `{key}`"));
         }
-        let mut cur = Cursor { s: text[eq + 1..].as_bytes(), i: 0, line };
+        let mut cur = Cursor { s: &text.as_bytes()[eq + 1..], i: 0, line };
         cur.skip_ws();
         let value = cur.value()?;
         cur.skip_ws();
