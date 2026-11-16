@@ -16,8 +16,7 @@ pub const RUST_OUT: &str = "core/src/generated.rs";
 pub const JS_OUT: &str = "src/generated.js";
 pub const WGSL_PATH: &str = "src/shader.wgsl";
 
-pub const WGSL_BEGIN: &str =
-    "// BEGIN GENERATED from content/game.toml by tools/gen. Do not edit; run ./build.sh.";
+pub const WGSL_BEGIN: &str = "// BEGIN GENERATED from content/game.toml by tools/gen. Do not edit; run ./build.sh.";
 pub const WGSL_END: &str = "// END GENERATED";
 
 /// Image slots per part in the shader (`PartRects` in src/shader.wgsl and
@@ -198,8 +197,7 @@ impl Cursor<'_> {
 /// Lowercase snake_case: a letter, then letters, digits or underscores.
 fn is_name(s: &str) -> bool {
     let mut b = s.bytes();
-    matches!(b.next(), Some(b'a'..=b'z'))
-        && b.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'_')
+    matches!(b.next(), Some(b'a'..=b'z')) && b.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'_')
 }
 
 // ------------------------------------------------------------------ content
@@ -418,11 +416,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     }
 
     // Unique ids and names within each table.
-    fn unique<'a>(
-        errs: &mut Vec<String>,
-        what: &str,
-        items: impl Iterator<Item = (u32, &'a str, usize)> + Clone,
-    ) {
+    fn unique<'a>(errs: &mut Vec<String>, what: &str, items: impl Iterator<Item = (u32, &'a str, usize)> + Clone) {
         let mut ids: BTreeMap<u32, usize> = BTreeMap::new();
         let mut names: BTreeMap<&str, usize> = BTreeMap::new();
         for (id, name, line) in items {
@@ -470,7 +464,10 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                 continue;
             }
             Some(v) => {
-                errs.push(format!("line {line}: state `{name}` len must be a number of 1 or more or a table name, not {}", v.kind()));
+                errs.push(format!(
+                    "line {line}: state `{name}` len must be a number of 1 or more or a table name, not {}",
+                    v.kind()
+                ));
                 continue;
             }
         };
@@ -636,9 +633,7 @@ pub fn render_wgsl_block(c: &Content) -> String {
 /// Replace the generated block in the shader source. Line endings become LF.
 pub fn splice_wgsl(shader: &str, c: &Content) -> Result<String, String> {
     let src = shader.replace("\r\n", "\n");
-    let begin = src
-        .find(WGSL_BEGIN)
-        .ok_or(format!("{WGSL_PATH}: no begin marker `{WGSL_BEGIN}`"))?;
+    let begin = src.find(WGSL_BEGIN).ok_or(format!("{WGSL_PATH}: no begin marker `{WGSL_BEGIN}`"))?;
     if src[begin + 1..].contains(WGSL_BEGIN) {
         return Err(format!("{WGSL_PATH}: more than one begin marker"));
     }

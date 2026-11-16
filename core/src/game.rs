@@ -208,10 +208,7 @@ impl Game {
         self.shake = (self.shake - dt * 3.0).max(0.0);
         let s = self.shake * self.shake * 9.0;
         let q = (self.anim * 30.0).floor();
-        self.cam = (
-            self.player.x + s * (q * 12.9898).sin(),
-            self.player.y - 30.0 + s * (q * 78.233).cos(),
-        );
+        self.cam = (self.player.x + s * (q * 12.9898).sin(), self.player.y - 30.0 + s * (q * 78.233).cos());
         self.build();
         self.write_state();
     }
@@ -952,10 +949,30 @@ impl Game {
                 let y = (cy as f32 + fy) * G;
                 let seed = (h & 255) as f32 / 255.0;
                 if (h >> 24).is_multiple_of(4) {
-                    self.put(x, y, 16.0 + seed * 12.0, 8.0 + seed * 5.0, 0.0, P_STONE, 0.0, seed, [INK[0], INK[1], INK[2], 0.16]);
+                    self.put(
+                        x,
+                        y,
+                        16.0 + seed * 12.0,
+                        8.0 + seed * 5.0,
+                        0.0,
+                        P_STONE,
+                        0.0,
+                        seed,
+                        [INK[0], INK[1], INK[2], 0.16],
+                    );
                 } else {
                     let flip = if h & 1 == 0 { 1.0 } else { -1.0 };
-                    self.put(x, y, (10.0 + seed * 6.0) * flip, 10.0 + seed * 8.0, 0.0, P_GRASS, 0.0, seed, [0.22, 0.36, 0.30, 0.45]);
+                    self.put(
+                        x,
+                        y,
+                        (10.0 + seed * 6.0) * flip,
+                        10.0 + seed * 8.0,
+                        0.0,
+                        P_GRASS,
+                        0.0,
+                        seed,
+                        [0.22, 0.36, 0.30, 0.45],
+                    );
                 }
             }
         }
@@ -984,7 +1001,11 @@ impl Game {
         let p = &self.player;
         let (px, py, f) = (p.x, p.y, p.face);
         let (tilt, bob) = if p.moving {
-            if ((p.walk * 9.0).floor() as i32) & 1 == 0 { (0.10, 0.0) } else { (-0.10, -3.0) }
+            if ((p.walk * 9.0).floor() as i32) & 1 == 0 {
+                (0.10, 0.0)
+            } else {
+                (-0.10, -3.0)
+            }
         } else if ((self.anim * 2.0).floor() as i32) & 1 == 0 {
             (0.0, 0.0)
         } else {
@@ -1006,7 +1027,17 @@ impl Game {
         }
         let top_x = px + 26.0 * tilt.sin();
         self.put(px, py - 26.0 + bob, 20.0 * f, 26.0, tilt, P_PLAYER_BODY, flash, 0.37, [0.20, 0.42, 0.36, a]);
-        self.put(top_x + f * 2.0, py - 60.0 + bob * 1.5, 15.0 * f, 15.0, -tilt * 0.6, P_PLAYER_HEAD, flash, 0.53, [0.15, 0.33, 0.29, a]);
+        self.put(
+            top_x + f * 2.0,
+            py - 60.0 + bob * 1.5,
+            15.0 * f,
+            15.0,
+            -tilt * 0.6,
+            P_PLAYER_HEAD,
+            flash,
+            0.53,
+            [0.15, 0.33, 0.29, a],
+        );
         if swinging {
             let t = 1.0 - attack / 0.25;
             let ease = t * t * (3.0 - 2.0 * t);
