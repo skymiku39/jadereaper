@@ -18,7 +18,7 @@ Pushed to `origin` on 2026-11-16 (the user said "推"); no PR is open.
 
 ### feat/mission-tuning
 
-A setup screen before every mission, where a tester changes the mission's numbers (the user asked for it on 2026-11-16 after playing: distances too far, counts too high or low). Cut from `docs/plan-refresh` at 771b494, so it carries that branch's two commits; merging this one brings them along. Committed, pushed and opened as a PR on 2026-11-16 (the user chose "Create PR"); merging it needs the user's word.
+A setup screen before every mission, where a tester changes the mission's numbers (the user asked for it on 2026-11-16 after playing: distances too far, counts too high or low). Cut from `docs/plan-refresh` at 771b494, so it carries that branch's two commits; merging this one brings them along. Committed, pushed and opened as PR 7 on 2026-11-16 (the user chose "Create PR"); merging it needs the user's word.
 
 - **How it works:** a number that can be changed is a `[[tune]]` in `content/game.toml` (42 of them: 3 to 5 per mission, and `spawn_rate`, `enemy_speed` and `enemy_hp` for every mission). The generator writes `T_*`, `TUNE_DEFAULT`, `TUNE_MIN`, `TUNE_MAX` and `MISSION_GOAL_TUNE` for Rust and `TUNES` for JavaScript. `Game.tune` holds a run's values; `jr_tune` and `jr_tune_reset` set them for the next `jr_start`. The mission files read `self.tune[...]` where they had constants. A title button now opens `#setup` (`setup` in `src/ui.js`, `openSetup`, `stepTune` and `startRun` in `src/main.js`); values are kept in the save as `tuning`.
 - **Decided here, not by the user:** a run with any tune off its default is a test run and is not recorded (no win, try or endless record). Which numbers are tunes and their ranges are a first pick.
