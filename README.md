@@ -117,7 +117,7 @@ cargo test --release --manifest-path core/Cargo.toml
 Ids live in one place, `content/game.toml`. After editing it, run `./build.sh` (or just the generator, `cargo run --release --manifest-path tools/gen/Cargo.toml`) and commit the content file together with `core/src/generated.rs`, `src/generated.js` and `src/shader.wgsl`. A part named `player_body` becomes `P_PLAYER_BODY` in Rust, `PART_PLAYER_BODY` in the shader and `PART_IDS.player_body` in JavaScript.
 
 - New enemy: add a row to `KINDS` in `core/src/defs.rs` and a spawn rule in `Game::spawn`.
-- New mission: add a `[[mission]]` entry (next id, name, goal) to `content/game.toml`, its win rule in `Game::mission_won` and its progress in `Game::progress` in `core/src/game.rs`, and its text as `mission.<name>.name`, `.desc` and `.hud` in every language in `src/i18n.js`. The title screen builds its button from the generated list.
+- New mission: add a `[[mission]]` entry (next id, name, goal) to `content/game.toml`, its win rule in `Game::mission_won` and its progress in `Game::progress` in `core/src/game.rs`, and its text as `mission.<name>.name` and `.desc` in every language in `src/i18n.js` (a timed mission also has `.hud`, the label beside its countdown). The title screen builds its button from the generated list; how the HUD shows the goal is in `hud` in `src/ui.js`.
 - New upgrade: add an `[[upgrade]]` entry (next id, name, max level, glyph) to `content/game.toml`, its effect in `Game::weapons` or where the stat is read, and its card text as `upgrade.<id>.name` and `upgrade.<id>.desc` in every language in `src/i18n.js`.
 - New text: add a key to every language in `src/i18n.js`, then use `t(key)` in code or a `data-i18n` attribute in `index.html`. Missing keys fall back to English.
 - New language: add its code to `LANGS` and a table to `STRINGS` in `src/i18n.js`, and to start new players in it, set `DEFAULT_LANG`.
@@ -128,7 +128,7 @@ Ids live in one place, `content/game.toml`. After editing it, run `./build.sh` (
 - Four enemy kinds (blot, wisp, brute, elite every 90 seconds) with time-scaled health and spawn rate, capped at 500 on screen
 - Four weapons (scythe, talisman, jade beads, spirit pulse) and six passive upgrades, with level-up choices
 - Experience gems, health drops, pickup magnet, knockback, invulnerability frames, camera shake
-- Missions picked on the title screen: "Hold Out" (stay alive for five minutes) and endless
+- Missions picked on the title screen: "Hold Out" (stay alive for five minutes), "Cull" (cut down 1,500 spirits) and endless
 - Title, settings, level-up, pause, game-over and mission-complete screens, playable by keyboard or gamepad
 - Saved best time, kills and level for endless, tries and wins per mission, sound and language settings
 - Traditional Chinese (the default) and English text, switchable in settings
