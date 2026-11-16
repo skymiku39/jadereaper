@@ -236,6 +236,40 @@ fn part_overrides_name_defined_parts() {
 }
 
 #[test]
+fn tunes_are_checked() {
+    assert_error(
+        &errors_after("name = \"kills_goal\"\nmission = \"kills\"", "name = \"kills_goal\"\nmission = \"cull\""),
+        "not defined",
+    );
+    assert_error(&errors_after("default = 1500\nmin = 100", "default = 1500\nmin = 2000"), "between its min and max");
+    assert_error(&errors_after("default = 1500\nmin = 100", "default = 1400\nmin = 100"), "must equal the goal");
+    assert_error(&errors_after("max = 5000\nstep = 100", "max = 5000\nstep = 0"), "step must be above 0");
+    assert_error(&errors_after("id = 4\nname = \"kills_goal\"", "id = 90\nname = \"kills_goal\""), "tune ids must run");
+}
+
+#[test]
+fn every_tune_has_a_label() {
+    let c = real();
+    let i18n = read("src/i18n.js");
+    let langs = i18n
+        .split("export const LANGS = [")
+        .nth(1)
+        .and_then(|s| s.split(']').next())
+        .map(|s| s.split(',').filter(|x| !x.trim().is_empty()).count())
+        .expect("LANGS not found in src/i18n.js");
+    for t in &c.tunes {
+        let key = format!("'tune.{}'", t.name);
+        assert_eq!(i18n.matches(&key).count(), langs, "{key} should appear once per language in src/i18n.js");
+    }
+    for name in refs(&i18n, "'tune.") {
+        assert!(
+            c.tunes.iter().any(|t| t.name == name),
+            "src/i18n.js has a label for tune `{name}`, which is not defined"
+        );
+    }
+}
+
+#[test]
 fn every_upgrade_has_card_text() {
     let c = real();
     let i18n = read("src/i18n.js");

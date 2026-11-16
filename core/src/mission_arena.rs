@@ -14,13 +14,9 @@ use crate::game::Game;
 pub const PAUSE: f32 = 2.5;
 /// Seconds before the first wave.
 const FIRST_DELAY: f32 = 1.5;
-/// Extra enemy health per wave after the first, as a fraction of base health.
-/// This replaces the time-based scaling, which would punish a slow player.
-const HP_PER_WAVE: f32 = 0.1;
-
 /// One wave: how many of each kind, `[blots, wisps, brutes, elites]`. The
-/// number of waves is the length of this table and the mission's goal in
-/// `content/game.toml`.
+/// mission plays the first `T_ARENA_GOAL` rows, so the goal cannot be longer
+/// than this table.
 pub const WAVES: [[u8; 4]; 10] = [
     [10, 0, 0, 0],
     [14, 4, 0, 0],
@@ -39,6 +35,14 @@ const ORDER: [u8; 4] = [K_BLOT, K_WISP, K_BRUTE, K_ELITE];
 
 /// Progress through the waves.
 pub struct Arena {
+    /// How many waves the run plays, `T_ARENA_GOAL`, at most the table's length.
+    waves: u32,
+    /// Multiplier of every count in a wave row, `T_ARENA_SIZE`.
+    size: f32,
+    /// Extra enemy health per wave after the first, as a fraction of base health,
+    /// `T_ARENA_HP_PER_WAVE`. This replaces the time-based scaling, which would
+    /// punish a slow player.
+    hp_per_wave: f32,
     /// Waves that have appeared so far.
     pub spawned: u32,
     /// Waves that have been fully cleared.
@@ -48,22 +52,45 @@ pub struct Arena {
 }
 
 impl Arena {
+    /// An arena with the default tunes.
     pub fn new() -> Arena {
-        Arena { spawned: 0, cleared: 0, pause: FIRST_DELAY }
+        Arena::from_tunes(&TUNE_DEFAULT)
     }
 
-    pub fn total() -> u32 {
-        WAVES.len() as u32
+    /// An arena that plays the waves the tunes ask for.
+    pub fn from_tunes(tune: &[f32; N_TUNES]) -> Arena {
+        Arena {
+            waves: (tune[T_ARENA_GOAL] as u32).clamp(1, WAVES.len() as u32),
+            size: tune[T_ARENA_SIZE],
+            hp_per_wave: tune[T_ARENA_HP_PER_WAVE],
+            spawned: 0,
+            cleared: 0,
+            pause: FIRST_DELAY,
+        }
+    }
+
+    /// How many waves the run plays.
+    pub fn total(&self) -> u32 {
+        self.waves
     }
 
     /// True once every wave is cleared.
     pub fn won(&self) -> bool {
-        self.cleared >= Self::total()
+        self.cleared >= self.total()
+    }
+
+    /// How many enemies of a kind a wave row has after the size tune: rounded,
+    /// but a kind that is in the row stays at least one.
+    fn count(&self, row_count: u8) -> usize {
+        if row_count == 0 {
+            return 0;
+        }
+        ((row_count as f32 * self.size).round() as usize).max(1)
     }
 
     /// Health multiplier of the wave being spawned (`spawned` already counts it).
     pub fn hp_scale(&self) -> f32 {
-        1.0 + HP_PER_WAVE * self.spawned.saturating_sub(1) as f32
+        1.0 + self.hp_per_wave * self.spawned.saturating_sub(1) as f32
     }
 }
 
@@ -82,7 +109,7 @@ impl Game {
         if self.arena.spawned > self.arena.cleared {
             self.arena.cleared = self.arena.spawned;
             self.arena.pause = PAUSE;
-        } else if self.arena.spawned < Arena::total() {
+        } else if self.arena.spawned < self.arena.total() {
             self.arena.pause -= dt;
             if self.arena.pause <= 0.0 {
                 self.arena_spawn_wave();
@@ -93,8 +120,8 @@ impl Game {
     fn arena_spawn_wave(&mut self) {
         let wave = WAVES[self.arena.spawned as usize];
         self.arena.spawned += 1;
-        for (kind, &count) in ORDER.iter().zip(wave.iter()) {
-            for _ in 0..count {
+        for (kind, &row_count) in ORDER.iter().zip(wave.iter()) {
+            for _ in 0..self.arena.count(row_count) {
                 self.spawn_enemy(*kind);
             }
         }
@@ -144,7 +171,8 @@ mod tests {
 
     #[test]
     fn the_wave_table_matches_the_mission_goal() {
-        assert_eq!(MISSION_GOAL[M_ARENA], WAVES.len() as f32);
+        assert_eq!(TUNE_DEFAULT[T_ARENA_GOAL], WAVES.len() as f32);
+        assert_eq!(TUNE_MAX[T_ARENA_GOAL], WAVES.len() as f32);
         assert_eq!(arena_game(1).goal(), WAVES.len() as f32);
         for (i, w) in WAVES.iter().enumerate() {
             assert!(w.iter().map(|&n| n as u32).sum::<u32>() > 0, "wave {i} is empty");
@@ -220,7 +248,7 @@ mod tests {
     #[test]
     fn progress_counts_cleared_waves_and_the_last_clear_wins() {
         let mut game = arena_game(5);
-        let total = Arena::total();
+        let total = game.arena.total();
         for w in 0..total {
             let mut ticks = 0;
             while game.arena.spawned <= w {
@@ -385,5 +413,44 @@ mod tests {
             eprintln!("fighter seed {seed}: won {won}, died {died}, waves {cleared}, {secs:.0}s");
             assert!(cleared >= 1, "seed {seed} cleared nothing");
         }
+    }
+
+    #[test]
+    fn tunes_change_the_waves() {
+        let mut game = Game::new(3);
+        game.set_tune(T_ARENA_GOAL, 2.0);
+        game.set_tune(T_ARENA_SIZE, 2.0);
+        game.set_tune(T_ARENA_HP_PER_WAVE, 0.5);
+        game.start(M_ARENA);
+        assert_eq!(game.goal(), 2.0);
+        assert_eq!(game.arena.total(), 2);
+        to_first_wave(&mut game);
+        assert_eq!(game.enemies.len(), 2 * WAVES[0][0] as usize);
+        for _ in 0..2 {
+            kill_all(&mut game);
+            for _ in 0..(60 * 10) {
+                step_unhurt(&mut game);
+                if game.arena.spawned > game.arena.cleared && !game.enemies.is_empty() {
+                    break;
+                }
+            }
+        }
+        assert!((game.arena.hp_scale() - 1.5).abs() < 1.0e-6);
+    }
+
+    #[test]
+    fn a_small_size_keeps_every_kind_present() {
+        let mut game = Game::new(3);
+        game.set_tune(T_ARENA_SIZE, 0.25);
+        game.start(M_ARENA);
+        // The elite row of the last wave is one enemy and stays one.
+        assert_eq!(game.arena.count(1), 1);
+        assert_eq!(game.arena.count(0), 0);
+        assert_eq!(game.arena.count(10), 3);
+        to_first_wave(&mut game);
+        for _ in 0..400 {
+            step_unhurt(&mut game);
+        }
+        assert!(!game.over);
     }
 }

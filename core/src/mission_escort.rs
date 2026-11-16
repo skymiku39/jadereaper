@@ -11,18 +11,12 @@
 
 use super::*;
 
-/// Legs of the route. Each is a straight walk of `LEG_LEN`, turning by a random
-/// angle at its start, so the route is `LEGS * LEG_LEN` long. That product is
-/// the `goal` of the mission in `content/game.toml`; a test keeps them equal.
+/// Legs of the route. Each is a straight walk of `T_ESCORT_LEG_LEN`, turning by
+/// a random angle at its start, so the route is `LEGS` times that long. That
+/// product is the goal of the mission; `Game::goal` computes it.
 pub const LEGS: usize = 7;
-pub const LEG_LEN: f32 = 3000.0;
 /// Largest turn between two legs, in radians.
 const TURN: f32 = 0.9;
-/// Walking speed in world units per second. The player moves at 190 or more.
-const SPEED: f32 = 70.0;
-/// The villager only walks while the player is closer than this.
-const FOLLOW_RADIUS: f32 = 240.0;
-const MAX_HP: f32 = 360.0;
 /// Share of an enemy's damage the villager takes. It is hurt less than the player,
 /// who can fight back and dodge.
 const HURT_SCALE: f32 = 0.2;
@@ -41,6 +35,10 @@ pub struct Escort {
     pub x: f32,
     pub y: f32,
     pub hp: f32,
+    /// Health the villager started with, `T_ESCORT_HP`.
+    pub max_hp: f32,
+    /// Length of one leg of the route, `T_ESCORT_LEG_LEN`.
+    leg_len: f32,
     /// Route length covered so far.
     pub walked: f32,
     /// True when the villager's death ended the run.
@@ -62,6 +60,8 @@ impl Escort {
             x: 0.0,
             y: 0.0,
             hp: 0.0,
+            max_hp: TUNE_DEFAULT[T_ESCORT_HP],
+            leg_len: TUNE_DEFAULT[T_ESCORT_LEG_LEN],
             walked: 0.0,
             fallen: false,
             waiting: false,
@@ -74,10 +74,12 @@ impl Escort {
     }
 
     /// Put the villager beside the player and draw the route from the run's generator.
-    fn begin(&mut self, rng: &mut Rng, px: f32, py: f32) {
+    fn begin(&mut self, rng: &mut Rng, px: f32, py: f32, tune: &[f32; N_TUNES]) {
         *self = Escort::new();
         self.active = true;
-        self.hp = MAX_HP;
+        self.max_hp = tune[T_ESCORT_HP];
+        self.leg_len = tune[T_ESCORT_LEG_LEN];
+        self.hp = self.max_hp;
         self.x = px + START_OFFSET.0;
         self.y = py + START_OFFSET.1;
         self.route[0] = (self.x, self.y);
@@ -87,7 +89,7 @@ impl Escort {
             let d = (fmath::cos(heading), fmath::sin(heading));
             self.dir[leg] = d;
             let (x, y) = self.route[leg];
-            self.route[leg + 1] = (x + d.0 * LEG_LEN, y + d.1 * LEG_LEN);
+            self.route[leg + 1] = (x + d.0 * self.leg_len, y + d.1 * self.leg_len);
         }
     }
 
@@ -98,13 +100,13 @@ impl Escort {
 
     /// The leg the villager is on.
     fn leg(&self) -> usize {
-        ((self.walked / LEG_LEN) as usize).min(LEGS - 1)
+        ((self.walked / self.leg_len) as usize).min(LEGS - 1)
     }
 
     /// Put the villager where `walked` says along the route.
     fn place(&mut self) {
         let leg = self.leg();
-        let t = (self.walked - leg as f32 * LEG_LEN).min(LEG_LEN);
+        let t = (self.walked - leg as f32 * self.leg_len).min(self.leg_len);
         let (x, y) = self.route[leg];
         self.x = x + self.dir[leg].0 * t;
         self.y = y + self.dir[leg].1 * t;
@@ -148,7 +150,7 @@ impl Game {
             return;
         }
         let (px, py) = (self.player.x, self.player.y);
-        self.escort.begin(&mut self.rng, px, py);
+        self.escort.begin(&mut self.rng, px, py, &self.tune);
     }
 
     /// One step of the villager: walk, take hits from touching enemies, fall.
@@ -157,13 +159,17 @@ impl Game {
             return;
         }
         let goal = self.goal();
+        // Walking speed in world units per second; the player moves at 190 or more.
+        let speed = self.tune[T_ESCORT_SPEED];
+        // The villager only walks while the player is closer than this.
+        let follow = self.tune[T_ESCORT_FOLLOW];
         let (px, py) = (self.player.x, self.player.y);
         let e = &mut self.escort;
         let (dx, dy) = (px - e.x, py - e.y);
-        e.waiting = dx * dx + dy * dy > FOLLOW_RADIUS * FOLLOW_RADIUS;
+        e.waiting = dx * dx + dy * dy > follow * follow;
         e.iframe = (e.iframe - dt).max(0.0);
         if !e.waiting {
-            e.walked = (e.walked + SPEED * dt).min(goal);
+            e.walked = (e.walked + speed * dt).min(goal);
             e.walk += dt;
             e.place();
         }
@@ -222,7 +228,7 @@ impl Game {
     pub(super) fn escort_state(&mut self) {
         let e = &self.escort;
         self.state[S_ESCORT_HP] = e.hp;
-        self.state[S_ESCORT_MAX_HP] = if e.active { MAX_HP } else { 0.0 };
+        self.state[S_ESCORT_MAX_HP] = if e.active { e.max_hp } else { 0.0 };
         self.state[S_ESCORT_FELL] = e.fallen as u8 as f32;
     }
 
@@ -323,6 +329,9 @@ mod tests {
     use super::*;
 
     const SECONDS: u32 = 60;
+    const LEG_LEN: f32 = TUNE_DEFAULT[T_ESCORT_LEG_LEN];
+    const SPEED: f32 = TUNE_DEFAULT[T_ESCORT_SPEED];
+    const MAX_HP: f32 = TUNE_DEFAULT[T_ESCORT_HP];
 
     fn escort_game(seed: u32) -> Game {
         let mut game = Game::new(seed);
@@ -671,5 +680,49 @@ mod tests {
             }
         }
         (sx, sy)
+    }
+
+    #[test]
+    fn tunes_change_the_route_and_the_villager() {
+        let mut game = Game::new(3);
+        game.set_tune(T_ESCORT_LEG_LEN, 500.0);
+        game.set_tune(T_ESCORT_HP, 1200.0);
+        game.set_tune(T_ESCORT_SPEED, 160.0);
+        game.set_tune(T_ESCORT_FOLLOW, 500.0);
+        game.start(M_ESCORT);
+        assert_eq!(game.goal(), 7.0 * 500.0);
+        assert_eq!(game.escort.hp, 1200.0);
+        game.update(TICK);
+        assert_eq!(game.state[S_ESCORT_MAX_HP], 1200.0);
+        assert_eq!(game.state[S_GOAL], 3500.0);
+        for leg in 0..LEGS {
+            let (a, b) = (game.escort.route[leg], game.escort.route[leg + 1]);
+            assert!(((b.0 - a.0).hypot(b.1 - a.1) - 500.0).abs() < 1.0);
+        }
+        // 400 away is inside the wider follow radius, so it walks, at the set speed.
+        game.player.x = 400.0;
+        let before = game.escort.walked;
+        game.tick();
+        assert!(!game.escort.waiting);
+        assert!((game.escort.walked - before - 160.0 * TICK).abs() < 1.0e-3);
+    }
+
+    #[test]
+    fn extreme_tunes_do_not_break_a_run() {
+        let mut game = Game::new(3);
+        game.set_tune(T_ESCORT_LEG_LEN, 500.0);
+        game.set_tune(T_ESCORT_HP, 60.0);
+        game.set_tune(T_ESCORT_SPEED, 160.0);
+        game.set_tune(T_ESCORT_FOLLOW, 100.0);
+        game.start(M_ESCORT);
+        for _ in 0..400 {
+            game.player.hp = game.player.max_hp;
+            game.tick();
+            if game.choosing {
+                game.choose(0);
+            }
+        }
+        assert!(game.escort.walked <= game.goal());
+        assert!(game.escort.x.is_finite() && game.escort.y.is_finite());
     }
 }

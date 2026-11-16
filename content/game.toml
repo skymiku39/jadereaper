@@ -301,6 +301,427 @@ id = 11
 name = "vendetta"
 goal = 6
 
+# ---------------------------------------------------------------- tunes
+# Numbers a tester can change on a mission's setup screen before a run, to
+# try a shorter route or a bigger crowd without a rebuild. `default` is the
+# value the game ships with, and the only one the checks and records use; a
+# run with any other value is a test run. Ids index the tune tables, so they
+# run 0, 1, 2... without gaps. `mission` is the mission whose setup screen
+# shows the tune, or "any" for all of them. A tune named `<mission>_goal` is
+# that mission's goal, and its default must equal the mission's `goal`. The
+# +/- buttons move a value by `step` between `min` and `max`. Labels are
+# `tune.<name>` in src/i18n.js.
+
+# Multiplies how many enemies the horde sends per second.
+[[tune]]
+id = 0
+name = "spawn_rate"
+mission = "any"
+default = 1.0
+min = 0.0
+max = 4.0
+step = 0.25
+
+# Multiplies the walking speed of every horde enemy.
+[[tune]]
+id = 1
+name = "enemy_speed"
+mission = "any"
+default = 1.0
+min = 0.5
+max = 4.0
+step = 0.25
+
+# Multiplies the health enemies are spawned with.
+[[tune]]
+id = 2
+name = "enemy_hp"
+mission = "any"
+default = 1.0
+min = 0.25
+max = 4.0
+step = 0.25
+
+[[tune]]
+id = 3
+name = "survive_goal"
+mission = "survive"
+default = 300
+min = 30
+max = 900
+step = 30
+
+[[tune]]
+id = 4
+name = "kills_goal"
+mission = "kills"
+default = 1500
+min = 100
+max = 5000
+step = 100
+
+[[tune]]
+id = 5
+name = "formation_goal"
+mission = "formation"
+default = 5
+min = 1
+max = 8
+step = 1
+
+# Health of a formation node.
+[[tune]]
+id = 6
+name = "formation_node_hp"
+mission = "formation"
+default = 2000
+min = 250
+max = 6000
+step = 250
+
+# Nodes stand between these two distances from the start.
+[[tune]]
+id = 7
+name = "formation_dist_min"
+mission = "formation"
+default = 1300
+min = 300
+max = 6000
+step = 100
+
+[[tune]]
+id = 8
+name = "formation_dist_max"
+mission = "formation"
+default = 2000
+min = 300
+max = 6000
+step = 100
+
+# Enemies in one spawn wave of an active node.
+[[tune]]
+id = 9
+name = "formation_spawn_count"
+mission = "formation"
+default = 3
+min = 0
+max = 8
+step = 1
+
+[[tune]]
+id = 10
+name = "arena_goal"
+mission = "arena"
+default = 10
+min = 1
+max = 10
+step = 1
+
+# Multiplies the number of enemies in every wave.
+[[tune]]
+id = 11
+name = "arena_size"
+mission = "arena"
+default = 1.0
+min = 0.25
+max = 3.0
+step = 0.25
+
+# Enemy health gained per wave, as a share of the base health.
+[[tune]]
+id = 12
+name = "arena_hp_per_wave"
+mission = "arena"
+default = 0.1
+min = 0.0
+max = 0.5
+step = 0.05
+
+[[tune]]
+id = 13
+name = "retrieval_goal"
+mission = "retrieval"
+default = 3
+min = 1
+max = 6
+step = 1
+
+# Relics lie between these two distances from the drop-off.
+[[tune]]
+id = 14
+name = "retrieval_dist_min"
+mission = "retrieval"
+default = 5000
+min = 500
+max = 12000
+step = 500
+
+[[tune]]
+id = 15
+name = "retrieval_dist_max"
+mission = "retrieval"
+default = 8000
+min = 500
+max = 12000
+step = 500
+
+# Share of walking speed lost per carried relic.
+[[tune]]
+id = 16
+name = "retrieval_slow"
+mission = "retrieval"
+default = 0.12
+min = 0.0
+max = 0.3
+step = 0.02
+
+# Health of the pursuit target.
+[[tune]]
+id = 17
+name = "pursuit_goal"
+mission = "pursuit"
+default = 3000
+min = 500
+max = 12000
+step = 500
+
+# Length of one of the six legs of the target's route.
+[[tune]]
+id = 18
+name = "pursuit_leg_len"
+mission = "pursuit"
+default = 3600
+min = 1200
+max = 9600
+step = 600
+
+# Speed of the target while it runs.
+[[tune]]
+id = 19
+name = "pursuit_speed"
+mission = "pursuit"
+default = 170
+min = 100
+max = 220
+step = 10
+
+# How far from the player the target starts.
+[[tune]]
+id = 20
+name = "pursuit_start_dist"
+mission = "pursuit"
+default = 800
+min = 300
+max = 2000
+step = 100
+
+# Enemies the target calls each time it stops.
+[[tune]]
+id = 21
+name = "pursuit_pack"
+mission = "pursuit"
+default = 8
+min = 0
+max = 24
+step = 2
+
+# Length of one of the seven legs of the escort route. The escort mission's
+# goal is the whole route, so it follows this.
+[[tune]]
+id = 22
+name = "escort_leg_len"
+mission = "escort"
+default = 3000
+min = 500
+max = 5000
+step = 250
+
+# Walking speed of the villager.
+[[tune]]
+id = 23
+name = "escort_speed"
+mission = "escort"
+default = 70
+min = 30
+max = 160
+step = 10
+
+# Health of the villager.
+[[tune]]
+id = 24
+name = "escort_hp"
+mission = "escort"
+default = 360
+min = 60
+max = 1200
+step = 60
+
+# The villager only walks while the player is closer than this.
+[[tune]]
+id = 25
+name = "escort_follow"
+mission = "escort"
+default = 240
+min = 100
+max = 500
+step = 20
+
+[[tune]]
+id = 26
+name = "hold_goal"
+mission = "hold"
+default = 300
+min = 30
+max = 600
+step = 30
+
+# Radius of the circle the player has to stand in.
+[[tune]]
+id = 27
+name = "hold_radius"
+mission = "hold"
+default = 160
+min = 60
+max = 400
+step = 20
+
+# Health of the shrine.
+[[tune]]
+id = 28
+name = "hold_point_hp"
+mission = "hold"
+default = 800
+min = 100
+max = 3000
+step = 100
+
+# Every n-th enemy goes for the shrine instead of the player.
+[[tune]]
+id = 29
+name = "hold_share"
+mission = "hold"
+default = 3
+min = 1
+max = 6
+step = 1
+
+[[tune]]
+id = 30
+name = "escape_goal"
+mission = "escape"
+default = 18000
+min = 2000
+max = 30000
+step = 2000
+
+# Enemies in the ring the run starts inside.
+[[tune]]
+id = 31
+name = "escape_ring_count"
+mission = "escape"
+default = 36
+min = 0
+max = 120
+step = 6
+
+# Extra enemies per second that appear between the player and the exit.
+[[tune]]
+id = 32
+name = "escape_ahead_rate"
+mission = "escape"
+default = 20
+min = 0
+max = 80
+step = 5
+
+# Chance that an enemy of the ring or the stream ahead is a brute.
+[[tune]]
+id = 33
+name = "escape_brute_share"
+mission = "escape"
+default = 0.25
+min = 0.0
+max = 0.5
+step = 0.05
+
+# Health of the boss.
+[[tune]]
+id = 34
+name = "boss_goal"
+mission = "boss"
+default = 12000
+min = 2000
+max = 30000
+step = 2000
+
+# Seconds of normal horde before the boss arrives.
+[[tune]]
+id = 35
+name = "boss_warmup"
+mission = "boss"
+default = 90
+min = 0
+max = 180
+step = 15
+
+# Walking speed of the boss toward the player.
+[[tune]]
+id = 36
+name = "boss_walk_speed"
+mission = "boss"
+default = 85
+min = 40
+max = 160
+step = 5
+
+# Share of the normal spawn rate that stays on once the boss is here.
+[[tune]]
+id = 37
+name = "boss_spawn_scale"
+mission = "boss"
+default = 0.4
+min = 0.0
+max = 1.0
+step = 0.1
+
+[[tune]]
+id = 38
+name = "vendetta_goal"
+mission = "vendetta"
+default = 6
+min = 1
+max = 12
+step = 1
+
+# The marked enemies wait between these two distances from the start.
+[[tune]]
+id = 39
+name = "vendetta_dist_min"
+mission = "vendetta"
+default = 16000
+min = 2000
+max = 30000
+step = 2000
+
+[[tune]]
+id = 40
+name = "vendetta_dist_max"
+mission = "vendetta"
+default = 20000
+min = 2000
+max = 30000
+step = 2000
+
+# Health of each marked enemy.
+[[tune]]
+id = 41
+name = "vendetta_group_hp"
+mission = "vendetta"
+default = 240
+min = 60
+max = 1200
+step = 60
+
 # ---------------------------------------------------------------- state
 # Fields of the HUD state buffer written by Game::write_state. `index` is the
 # first float. A field with `len` is a run of floats; its constant gets a 0

@@ -230,6 +230,20 @@ pub struct Mission {
     pub goal: u32,
 }
 
+/// A number of a mission that the setup screen can change for a test run.
+/// The four values are kept as written so generated literals match the source.
+#[derive(Clone, Debug)]
+pub struct Tune {
+    pub id: u32,
+    pub name: String,
+    /// The mission whose setup screen shows it, or "any" for every mission.
+    pub mission: String,
+    pub default: String,
+    pub min: String,
+    pub max: String,
+    pub step: String,
+}
+
 #[derive(Clone, Debug)]
 pub struct StateField {
     pub name: String,
@@ -247,6 +261,7 @@ pub struct Content {
     pub upgrades: Vec<Upgrade>,
     pub events: Vec<Event>,
     pub missions: Vec<Mission>,
+    pub tunes: Vec<Tune>,
     pub state: Vec<StateField>,
 }
 
@@ -314,6 +329,25 @@ impl<'a> Fields<'a> {
         }
     }
 
+    /// A whole number or a decimal, as written.
+    fn number(&mut self, key: &'a str) -> Option<String> {
+        let e = match self.get(key) {
+            Some(e) => e,
+            None => {
+                self.missing(key);
+                return None;
+            }
+        };
+        match &e.value {
+            Value::Int(v) => Some(v.to_string()),
+            Value::Num(s) => Some(s.clone()),
+            _ => {
+                self.wrong(e, "a number");
+                None
+            }
+        }
+    }
+
     fn name(&mut self) -> Option<String> {
         let line = self.t.entries.iter().find(|e| e.key == "name").map_or(self.t.line, |e| e.line);
         let n = self.string("name")?;
@@ -335,7 +369,7 @@ impl<'a> Fields<'a> {
 }
 
 /// Table names the content file may use, also valid as a `len` reference.
-const TABLES: [&str; 5] = ["part", "upgrade", "event", "mission", "state"];
+const TABLES: [&str; 6] = ["part", "upgrade", "event", "mission", "tune", "state"];
 
 /// Parse and check the content file. Returns every problem found.
 pub fn load(src: &str) -> Result<Content, Vec<String>> {
@@ -377,6 +411,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     let mut upgrades = Vec::new();
     let mut events = Vec::new();
     let mut missions = Vec::new();
+    let mut tunes = Vec::new();
     // (name, index, len given as written, line)
     let mut raw_state: Vec<(String, u32, Option<Value>, usize)> = Vec::new();
 
@@ -414,6 +449,16 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
             "mission" => {
                 if let (Some(id), Some(name), Some(goal)) = (f.uint("id"), f.name(), f.uint("goal")) {
                     missions.push((Mission { id, name, goal }, t.line));
+                }
+            }
+            "tune" => {
+                let (id, name, mission) = (f.uint("id"), f.name(), f.string("mission"));
+                let (default, min) = (f.number("default"), f.number("min"));
+                let (max, step) = (f.number("max"), f.number("step"));
+                if let (Some(id), Some(name), Some(mission), Some(default), Some(min), Some(max), Some(step)) =
+                    (id, name, mission, default, min, max, step)
+                {
+                    tunes.push((Tune { id, name, mission, default, min, max, step }, t.line));
                 }
             }
             "state" => {
@@ -473,12 +518,44 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
         errs.push("at least one [[mission]] is needed".to_string());
     }
 
+    // Tunes: ids index tables, each belongs to a mission, and the default lies in its range.
+    unique(&mut errs, "tune", tunes.iter().map(|(t, l)| (t.id, t.name.as_str(), *l)));
+    let mut tune_ids: Vec<u32> = tunes.iter().map(|(t, _)| t.id).collect();
+    tune_ids.sort_unstable();
+    tune_ids.dedup();
+    if tune_ids.iter().enumerate().any(|(i, id)| i as u32 != *id) {
+        errs.push(format!("tune ids must run 0 to {} without gaps", tunes.len().saturating_sub(1)));
+    }
+    for (t, line) in &tunes {
+        let owner = missions.iter().find(|(m, _)| m.name == t.mission);
+        if t.mission != "any" && owner.is_none() {
+            errs.push(format!("line {line}: tune `{}` is for mission `{}`, which is not defined", t.name, t.mission));
+        }
+        let v = |s: &String| s.parse::<f64>().unwrap_or(f64::NAN);
+        let (default, min, max, step) = (v(&t.default), v(&t.min), v(&t.max), v(&t.step));
+        if default < min || default > max {
+            errs.push(format!("line {line}: tune `{}` default must lie between its min and max", t.name));
+        }
+        if step <= 0.0 {
+            errs.push(format!("line {line}: tune `{}` step must be above 0", t.name));
+        }
+        if let Some((m, _)) = owner {
+            if t.name == format!("{}_goal", m.name) && default != m.goal as f64 {
+                errs.push(format!(
+                    "line {line}: tune `{}` default must equal the goal of mission `{}` ({})",
+                    t.name, m.name, m.goal
+                ));
+            }
+        }
+    }
+
     // State fields: resolve `len`, then check bounds and overlap.
     let count = |table: &str| match table {
         "part" => parts.len(),
         "upgrade" => upgrades.len(),
         "event" => events.len(),
         "mission" => missions.len(),
+        "tune" => tunes.len(),
         _ => raw_state.len(),
     };
     let mut state = Vec::new();
@@ -529,6 +606,8 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     events.sort_by_key(|e| e.id);
     let mut missions: Vec<Mission> = missions.into_iter().map(|(m, _)| m).collect();
     missions.sort_by_key(|m| m.id);
+    let mut tunes: Vec<Tune> = tunes.into_iter().map(|(t, _)| t).collect();
+    tunes.sort_by_key(|t| t.id);
     Ok(Content {
         ink: ink.unwrap(),
         state_floats: state_floats.unwrap(),
@@ -536,6 +615,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
         upgrades,
         events,
         missions,
+        tunes,
         state: state.into_iter().map(|(s, _)| s).collect(),
     })
 }
@@ -598,6 +678,32 @@ pub fn render_rust(c: &Content) -> String {
     o.push_str("#[rustfmt::skip]\n");
     writeln!(o, "pub const MISSION_GOAL: [f32; N_MISSIONS] = [{}];", goals.join(", ")).unwrap();
 
+    o.push_str("\n// Tunes: numbers the setup screen can change for a test run, with their range.\n");
+    for t in &c.tunes {
+        writeln!(o, "pub const T_{}: usize = {};", upper(&t.name), t.id).unwrap();
+    }
+    writeln!(o, "pub const N_TUNES: usize = {};", c.tunes.len()).unwrap();
+    let column = |pick: fn(&Tune) -> &String| -> String {
+        c.tunes.iter().map(|t| float_lit(pick(t))).collect::<Vec<String>>().join(", ")
+    };
+    o.push_str("#[rustfmt::skip]\n");
+    writeln!(o, "pub const TUNE_DEFAULT: [f32; N_TUNES] = [{}];", column(|t| &t.default)).unwrap();
+    o.push_str("#[rustfmt::skip]\n");
+    writeln!(o, "pub const TUNE_MIN: [f32; N_TUNES] = [{}];", column(|t| &t.min)).unwrap();
+    o.push_str("#[rustfmt::skip]\n");
+    writeln!(o, "pub const TUNE_MAX: [f32; N_TUNES] = [{}];", column(|t| &t.max)).unwrap();
+    o.push_str("// The tune that holds each mission's goal; N_TUNES where the goal cannot be changed.\n");
+    let goal_tunes: Vec<String> = c
+        .missions
+        .iter()
+        .map(|m| {
+            let name = format!("{}_goal", m.name);
+            c.tunes.iter().find(|t| t.name == name).map_or("N_TUNES".to_string(), |t| format!("T_{}", upper(&t.name)))
+        })
+        .collect();
+    o.push_str("#[rustfmt::skip]\n");
+    writeln!(o, "pub const MISSION_GOAL_TUNE: [usize; N_MISSIONS] = [{}];", goal_tunes.join(", ")).unwrap();
+
     o.push_str("\n// HUD state buffer: size and the index of each field.\n");
     writeln!(o, "pub const STATE_FLOATS: usize = {};", c.state_floats).unwrap();
     for s in &c.state {
@@ -658,6 +764,25 @@ pub fn render_js(c: &Content) -> String {
         writeln!(o, "  {}: {},", m.name, m.id).unwrap();
     }
     o.push_str("};\n\n");
+
+    o.push_str("/** Tunes, indexed by id: numbers the setup screen can change for a test run. `mission` is the\n");
+    o.push_str(" * mission that shows the tune, or 'any'. Labels are in src/i18n.js as tune.<name>. */\n");
+    o.push_str("export const TUNES = [\n");
+    for t in &c.tunes {
+        writeln!(
+            o,
+            "  {{ id: {}, name: {}, mission: {}, def: {}, min: {}, max: {}, step: {} }},",
+            t.id,
+            js_str(&t.name),
+            js_str(&t.mission),
+            t.default,
+            t.min,
+            t.max,
+            t.step
+        )
+        .unwrap();
+    }
+    o.push_str("];\n\n");
 
     o.push_str("/** Size of the state array written by the core, in floats. */\n");
     writeln!(o, "export const STATE_FLOATS = {};", c.state_floats).unwrap();

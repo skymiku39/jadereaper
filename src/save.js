@@ -11,6 +11,8 @@ const DEFAULTS = {
   totalKills: 0,
   // Per mission name: { tries, wins }. The numbers above are for endless only.
   missions: {},
+  // Per tune name: the value last set on a mission's setup screen. Only changed tunes are kept.
+  tuning: {},
   volume: 0.6,
   muted: false,
   lang: null, // null: use DEFAULT_LANG from i18n.js
@@ -21,13 +23,27 @@ export function loadSave() {
     const raw = localStorage.getItem(KEY);
     const data = raw ? JSON.parse(raw) : {};
     const save = { ...DEFAULTS, ...(data && typeof data === 'object' ? data : {}) };
-    // Older saves have no mission records; never share the default object.
-    const ok = save.missions && typeof save.missions === 'object' && !Array.isArray(save.missions);
-    save.missions = ok ? { ...save.missions } : {};
+    // Older saves have no mission records or tuning; never share the default objects.
+    const plain = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? { ...v } : {});
+    save.missions = plain(save.missions);
+    save.tuning = plain(save.tuning);
     return save;
   } catch {
-    return { ...DEFAULTS, missions: {} };
+    return { ...DEFAULTS, missions: {}, tuning: {} };
   }
+}
+
+/** The value of a tune: the saved one if it is a number, kept inside the tune's range, else the default. */
+export function tuneValue(save, tune) {
+  const v = save.tuning[tune.name];
+  return typeof v === 'number' && Number.isFinite(v) ? Math.min(tune.max, Math.max(tune.min, v)) : tune.def;
+}
+
+/** Remember a tune's value. The default is not stored, so a later change of the default takes effect. */
+export function setTune(save, tune, value) {
+  if (value === tune.def) delete save.tuning[tune.name];
+  else save.tuning[tune.name] = value;
+  writeSave(save);
 }
 
 /** How often a mission was tried and won. */

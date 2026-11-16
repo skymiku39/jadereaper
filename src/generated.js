@@ -87,6 +87,53 @@ export const MISSION_IDS = {
   vendetta: 11,
 };
 
+/** Tunes, indexed by id: numbers the setup screen can change for a test run. `mission` is the
+ * mission that shows the tune, or 'any'. Labels are in src/i18n.js as tune.<name>. */
+export const TUNES = [
+  { id: 0, name: 'spawn_rate', mission: 'any', def: 1.0, min: 0.0, max: 4.0, step: 0.25 },
+  { id: 1, name: 'enemy_speed', mission: 'any', def: 1.0, min: 0.5, max: 4.0, step: 0.25 },
+  { id: 2, name: 'enemy_hp', mission: 'any', def: 1.0, min: 0.25, max: 4.0, step: 0.25 },
+  { id: 3, name: 'survive_goal', mission: 'survive', def: 300, min: 30, max: 900, step: 30 },
+  { id: 4, name: 'kills_goal', mission: 'kills', def: 1500, min: 100, max: 5000, step: 100 },
+  { id: 5, name: 'formation_goal', mission: 'formation', def: 5, min: 1, max: 8, step: 1 },
+  { id: 6, name: 'formation_node_hp', mission: 'formation', def: 2000, min: 250, max: 6000, step: 250 },
+  { id: 7, name: 'formation_dist_min', mission: 'formation', def: 1300, min: 300, max: 6000, step: 100 },
+  { id: 8, name: 'formation_dist_max', mission: 'formation', def: 2000, min: 300, max: 6000, step: 100 },
+  { id: 9, name: 'formation_spawn_count', mission: 'formation', def: 3, min: 0, max: 8, step: 1 },
+  { id: 10, name: 'arena_goal', mission: 'arena', def: 10, min: 1, max: 10, step: 1 },
+  { id: 11, name: 'arena_size', mission: 'arena', def: 1.0, min: 0.25, max: 3.0, step: 0.25 },
+  { id: 12, name: 'arena_hp_per_wave', mission: 'arena', def: 0.1, min: 0.0, max: 0.5, step: 0.05 },
+  { id: 13, name: 'retrieval_goal', mission: 'retrieval', def: 3, min: 1, max: 6, step: 1 },
+  { id: 14, name: 'retrieval_dist_min', mission: 'retrieval', def: 5000, min: 500, max: 12000, step: 500 },
+  { id: 15, name: 'retrieval_dist_max', mission: 'retrieval', def: 8000, min: 500, max: 12000, step: 500 },
+  { id: 16, name: 'retrieval_slow', mission: 'retrieval', def: 0.12, min: 0.0, max: 0.3, step: 0.02 },
+  { id: 17, name: 'pursuit_goal', mission: 'pursuit', def: 3000, min: 500, max: 12000, step: 500 },
+  { id: 18, name: 'pursuit_leg_len', mission: 'pursuit', def: 3600, min: 1200, max: 9600, step: 600 },
+  { id: 19, name: 'pursuit_speed', mission: 'pursuit', def: 170, min: 100, max: 220, step: 10 },
+  { id: 20, name: 'pursuit_start_dist', mission: 'pursuit', def: 800, min: 300, max: 2000, step: 100 },
+  { id: 21, name: 'pursuit_pack', mission: 'pursuit', def: 8, min: 0, max: 24, step: 2 },
+  { id: 22, name: 'escort_leg_len', mission: 'escort', def: 3000, min: 500, max: 5000, step: 250 },
+  { id: 23, name: 'escort_speed', mission: 'escort', def: 70, min: 30, max: 160, step: 10 },
+  { id: 24, name: 'escort_hp', mission: 'escort', def: 360, min: 60, max: 1200, step: 60 },
+  { id: 25, name: 'escort_follow', mission: 'escort', def: 240, min: 100, max: 500, step: 20 },
+  { id: 26, name: 'hold_goal', mission: 'hold', def: 300, min: 30, max: 600, step: 30 },
+  { id: 27, name: 'hold_radius', mission: 'hold', def: 160, min: 60, max: 400, step: 20 },
+  { id: 28, name: 'hold_point_hp', mission: 'hold', def: 800, min: 100, max: 3000, step: 100 },
+  { id: 29, name: 'hold_share', mission: 'hold', def: 3, min: 1, max: 6, step: 1 },
+  { id: 30, name: 'escape_goal', mission: 'escape', def: 18000, min: 2000, max: 30000, step: 2000 },
+  { id: 31, name: 'escape_ring_count', mission: 'escape', def: 36, min: 0, max: 120, step: 6 },
+  { id: 32, name: 'escape_ahead_rate', mission: 'escape', def: 20, min: 0, max: 80, step: 5 },
+  { id: 33, name: 'escape_brute_share', mission: 'escape', def: 0.25, min: 0.0, max: 0.5, step: 0.05 },
+  { id: 34, name: 'boss_goal', mission: 'boss', def: 12000, min: 2000, max: 30000, step: 2000 },
+  { id: 35, name: 'boss_warmup', mission: 'boss', def: 90, min: 0, max: 180, step: 15 },
+  { id: 36, name: 'boss_walk_speed', mission: 'boss', def: 85, min: 40, max: 160, step: 5 },
+  { id: 37, name: 'boss_spawn_scale', mission: 'boss', def: 0.4, min: 0.0, max: 1.0, step: 0.1 },
+  { id: 38, name: 'vendetta_goal', mission: 'vendetta', def: 6, min: 1, max: 12, step: 1 },
+  { id: 39, name: 'vendetta_dist_min', mission: 'vendetta', def: 16000, min: 2000, max: 30000, step: 2000 },
+  { id: 40, name: 'vendetta_dist_max', mission: 'vendetta', def: 20000, min: 2000, max: 30000, step: 2000 },
+  { id: 41, name: 'vendetta_group_hp', mission: 'vendetta', def: 240, min: 60, max: 1200, step: 60 },
+];
+
 /** Size of the state array written by the core, in floats. */
 export const STATE_FLOATS = 60;
 

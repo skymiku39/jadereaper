@@ -10,7 +10,7 @@ use crate::fmath;
 use crate::mission_arena::Arena;
 use crate::mission_escape::Escape;
 use crate::mission_formation::Formation;
-use crate::mission_hold::{Hold, POINT, POINT_HP};
+use crate::mission_hold::{Hold, POINT};
 use crate::mission_retrieval::{Canvas, Retrieval};
 use core::f32::consts::TAU;
 use mission_escort::Escort;
@@ -100,6 +100,9 @@ pub struct Game {
     pub over: bool,
     /// The mission being played, an `M_*` id.
     pub mission: usize,
+    /// The run's tunes, indexed by `T_*`: the defaults, unless the setup screen
+    /// changed some for a test run. Set before `start` and fixed after it.
+    pub tune: [f32; N_TUNES],
     /// True once the mission's goal is met. The run stops there.
     pub won: bool,
     /// Run time in seconds. Stops while choosing an upgrade.
@@ -210,6 +213,7 @@ impl Game {
             choosing: false,
             over: false,
             mission: M_ENDLESS,
+            tune: TUNE_DEFAULT,
             won: false,
             time: 0.0,
             anim: 0.0,
@@ -272,14 +276,14 @@ impl Game {
     /// Start a run of the given mission. An unknown id plays endless.
     pub fn start(&mut self, mission: usize) {
         self.mission = if mission < N_MISSIONS { mission } else { M_ENDLESS };
-        self.hold.begin(self.mission == M_HOLD);
+        self.hold.begin(self.mission == M_HOLD, &self.tune);
         self.running = true;
         if self.mission == M_FORMATION {
             self.formation_start();
         }
-        self.arena = Arena::new();
+        self.arena = Arena::from_tunes(&self.tune);
         if self.mission == M_RETRIEVAL {
-            self.retrieval.reset(&mut self.rng);
+            self.retrieval.reset(&mut self.rng, &self.tune);
         }
         if self.mission == M_PURSUIT {
             self.pursuit_start();
@@ -293,9 +297,24 @@ impl Game {
         }
     }
 
+    /// Change one tune for the run about to start, kept inside its range.
+    /// An unknown id or a value that is not a number changes nothing.
+    pub fn set_tune(&mut self, id: usize, value: f32) {
+        if id < N_TUNES && value.is_finite() {
+            self.tune[id] = value.clamp(TUNE_MIN[id], TUNE_MAX[id]);
+        }
+    }
+
     /// What the mission asks for, in its own unit. 0 for none.
     pub fn goal(&self) -> f32 {
-        MISSION_GOAL[self.mission]
+        // The escort route is its legs laid end to end, so its length follows the leg tune.
+        if self.mission == M_ESCORT {
+            return mission_escort::LEGS as f32 * self.tune[T_ESCORT_LEG_LEN];
+        }
+        match MISSION_GOAL_TUNE[self.mission] {
+            t if t < N_TUNES => self.tune[t],
+            _ => MISSION_GOAL[self.mission],
+        }
     }
 
     /// How far along the mission is, in the same unit as the goal.
@@ -756,7 +775,7 @@ impl Game {
             y,
             kx: 0.0,
             ky: 0.0,
-            hp: k.hp * scale,
+            hp: k.hp * scale * self.tune[T_ENEMY_HP],
             kind,
             flash: 0.0,
             seed,
@@ -772,7 +791,7 @@ impl Game {
             return;
         }
         let t = self.time;
-        let rate = (1.0 + t / 24.0) * self.formation_edge_scale();
+        let rate = (1.0 + t / 24.0) * self.formation_edge_scale() * self.tune[T_SPAWN_RATE];
         self.spawn_acc += rate * dt;
         while self.spawn_acc >= 1.0 {
             self.spawn_acc -= 1.0;
@@ -800,6 +819,7 @@ impl Game {
         let ring = self.spawn_ring();
         let far = ring * 1.8;
         let decay = fmath::exp(-8.0 * dt);
+        let pace = self.tune[T_ENEMY_SPEED];
         let escort = &self.escort;
         let mut hit: Option<f32> = None;
         let hold = &mut self.hold;
@@ -809,12 +829,13 @@ impl Game {
                 continue;
             }
             let k = &KINDS[e.kind as usize];
+            let speed = k.speed * pace;
             let (dx, dy) = (px - e.x, py - e.y);
             let d = (dx * dx + dy * dy).sqrt().max(0.001);
             // The boss of the boss mission steers itself.
             let drive = self.boss.drive(e.id);
             // A marked enemy of the vendetta mission follows the mission, not the horde.
-            let marked = self.vendetta.steer(e.id, e.x, e.y, px, py, k.speed);
+            let marked = self.vendetta.steer(e.id, e.x, e.y, px, py, speed);
             if d > far && drive.is_none() && marked.is_none() {
                 // Left far behind: bring it back to the spawn ring on the
                 // other side so the crowd keeps closing in.
@@ -846,7 +867,7 @@ impl Game {
                     v
                 }
                 (None, Some(v)) => v,
-                (None, None) => (hx / hd * k.speed, hy / hd * k.speed),
+                (None, None) => (hx / hd * speed, hy / hd * speed),
             };
             e.x += (vx + e.kx) * dt;
             e.y += (vy + e.ky) * dt;
@@ -1440,7 +1461,7 @@ impl Game {
         s[S_WON] = self.won as u8 as f32;
         s[S_CARRIED] = self.retrieval.carried() as f32;
         s[S_POINT_HP] = self.hold.hp;
-        s[S_POINT_MAX] = POINT_HP;
+        s[S_POINT_MAX] = self.hold.max_hp;
         s[S_POINT_FELL] = self.hold.fell as u8 as f32;
         s[S_EXIT_X] = self.escape.x;
         s[S_EXIT_Y] = self.escape.y;

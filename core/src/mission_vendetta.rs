@@ -13,14 +13,8 @@
 
 use super::*;
 
-/// The place is this far from the start, in world units. Straight walking at
-/// the base speed takes about a minute and a half; the crowd makes the real trip longer.
-const DIST_MIN: f32 = 16000.0;
-const DIST_MAX: f32 = 20000.0;
 /// Radius of the circle the marked enemies stand on.
 const SLOT_R: f32 = 100.0;
-/// Health of each marked enemy. Unlike the horde it does not grow with time.
-const GROUP_HP: f32 = 240.0;
 /// The group wakes when the player is this close to the place.
 const AGGRO_R: f32 = 600.0;
 /// A woken group gives up and walks home when the player is this far away.
@@ -100,8 +94,14 @@ impl Game {
     /// Pick the place from the seed and put the marked group on it.
     pub(super) fn vendetta_start(&mut self) {
         let n = self.goal() as usize;
+        // The place is this far from the start, in world units, between the two
+        // tunes in either order. At the default, straight walking at the base
+        // speed takes about a minute and a half; the crowd makes the real trip longer.
+        let (d_a, d_b) = (self.tune[T_VENDETTA_DIST_MIN], self.tune[T_VENDETTA_DIST_MAX]);
+        // Health of each marked enemy. Unlike the horde it does not grow with time.
+        let group_hp = self.tune[T_VENDETTA_GROUP_HP];
         let a = self.rng.range(0.0, TAU);
-        let dist = self.rng.range(DIST_MIN, DIST_MAX);
+        let dist = self.rng.range(d_a.min(d_b), d_a.max(d_b));
         let place = (self.player.x + fmath::cos(a) * dist, self.player.y + fmath::sin(a) * dist);
         let a0 = self.rng.range(0.0, TAU);
         let mut v = Vendetta { place, ..Vendetta::default() };
@@ -116,7 +116,7 @@ impl Game {
                 y: home.1,
                 kx: 0.0,
                 ky: 0.0,
-                hp: GROUP_HP,
+                hp: group_hp,
                 kind: K_BRUTE,
                 flash: 0.0,
                 seed,
@@ -197,6 +197,9 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const DIST_MIN: f32 = TUNE_DEFAULT[T_VENDETTA_DIST_MIN];
+    const DIST_MAX: f32 = TUNE_DEFAULT[T_VENDETTA_DIST_MAX];
 
     fn started(seed: u32) -> Game {
         let mut game = Game::new(seed);
@@ -503,5 +506,39 @@ mod tests {
             let (won, t, level, alive, left) = play_bot(seed, true, 12);
             println!("seed {seed}: won {won} at {t:.0}s, level {level}, marked left {alive}, {left:.0} from the place");
         }
+    }
+
+    #[test]
+    fn tunes_change_the_group_and_the_place() {
+        let mut game = Game::new(7);
+        game.set_view(640.0, 360.0);
+        game.set_tune(T_VENDETTA_GOAL, 12.0);
+        game.set_tune(T_VENDETTA_DIST_MIN, 2000.0);
+        game.set_tune(T_VENDETTA_DIST_MAX, 3000.0);
+        game.set_tune(T_VENDETTA_GROUP_HP, 1200.0);
+        game.start(M_VENDETTA);
+        assert_eq!(game.goal(), 12.0);
+        assert_eq!(game.vendetta.ids.len(), 12);
+        let d = dist(game.vendetta.place, (game.player.x, game.player.y));
+        assert!((1999.0..=3001.0).contains(&d), "{d}");
+        for e in game.enemies.iter().filter(|e| game.vendetta.is_marked(e.id)) {
+            assert_eq!(e.hp, 1200.0);
+        }
+        game.update(TICK);
+        assert_eq!(game.state[S_GOAL], 12.0);
+    }
+
+    #[test]
+    fn a_minimum_above_the_maximum_is_put_in_order() {
+        let mut game = Game::new(7);
+        game.set_view(640.0, 360.0);
+        game.set_tune(T_VENDETTA_GOAL, 1.0);
+        game.set_tune(T_VENDETTA_DIST_MIN, 30000.0);
+        game.set_tune(T_VENDETTA_DIST_MAX, 2000.0);
+        game.start(M_VENDETTA);
+        let d = dist(game.vendetta.place, (game.player.x, game.player.y));
+        assert!((1999.0..=30001.0).contains(&d), "{d}");
+        run(&mut game, 8);
+        assert!(game.vendetta.place.0.is_finite() && !game.over);
     }
 }

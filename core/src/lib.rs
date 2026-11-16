@@ -35,11 +35,40 @@ pub extern "C" fn jr_reset(seed: u32) {
     g().set_view(w, h);
 }
 
-/// Start a new run of a mission (an id from `[[mission]]` in the content file).
+/// The tunes the next `jr_start` gives its run, indexed like `[[tune]]` in the content file.
+static mut TUNE: [f32; defs::N_TUNES] = defs::TUNE_DEFAULT;
+
+fn tune() -> &'static mut [f32; defs::N_TUNES] {
+    // Single-threaded wasm, like `g`.
+    unsafe { &mut *core::ptr::addr_of_mut!(TUNE) }
+}
+
+/// Start a new run of a mission (an id from `[[mission]]` in the content file),
+/// with the tunes set by `jr_tune` since the last `jr_tune_reset`.
 #[no_mangle]
 pub extern "C" fn jr_start(seed: u32, mission: u32) {
     jr_reset(seed);
+    for (id, value) in tune().iter().enumerate() {
+        g().set_tune(id, *value);
+    }
     g().start(mission as usize);
+}
+
+/// Change one tune (an id from `[[tune]]`) for the runs started from now on.
+/// The value is kept inside the tune's range; an unknown id is ignored.
+#[no_mangle]
+pub extern "C" fn jr_tune(id: u32, value: f32) {
+    if let Some(slot) = tune().get_mut(id as usize) {
+        if value.is_finite() {
+            *slot = value;
+        }
+    }
+}
+
+/// Put every tune back to its default.
+#[no_mangle]
+pub extern "C" fn jr_tune_reset() {
+    *tune() = defs::TUNE_DEFAULT;
 }
 
 /// Visible area in world units (full width and height).

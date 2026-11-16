@@ -14,14 +14,10 @@ use crate::fmath;
 use crate::game::Game;
 use core::f32::consts::TAU;
 
-/// Health of a node. The scythe alone takes about 90 seconds to bring one down.
-pub const NODE_HP: f32 = 2000.0;
 /// Radius of a node. A weapon hits it when it reaches this far past the centre.
 pub const NODE_R: f32 = 44.0;
 /// Seconds between two spawn waves of an active node.
 const SPAWN_EVERY: f32 = 1.6;
-/// Enemies in a wave.
-const SPAWN_COUNT: usize = 3;
 /// Enemies appear this far from the node's centre (min, max).
 const SPAWN_AT: (f32, f32) = (80.0, 160.0);
 /// A node only spawns while the player is within this many spawn rings.
@@ -30,8 +26,6 @@ const ACTIVE_RINGS: f32 = 1.3;
 const ENEMY_CAP: usize = 380;
 /// Share of the usual edge-of-screen spawn rate that stays on.
 const EDGE_RATE: f32 = 0.4;
-/// Distance of the nodes from the start (min, max).
-const LAYOUT_RADIUS: (f32, f32) = (1300.0, 2000.0);
 /// Seconds a destroyed node's shockwave ring takes to fade.
 const RUIN_FADE: f32 = 0.8;
 
@@ -55,25 +49,31 @@ impl Node {
 #[derive(Default)]
 pub struct Formation {
     pub nodes: Vec<Node>,
+    /// Health a node starts with, `T_FORMATION_NODE_HP`. The scythe alone takes
+    /// about 90 seconds to bring one down at the default.
+    pub node_hp: f32,
     /// Enemies the nodes have spawned so far.
     pub spawned: u32,
 }
 
 impl Formation {
-    /// Lay out `n` nodes around the origin from the run's seed state: evenly
-    /// spread in angle with some jitter, at varying distances.
-    pub fn start(&mut self, state: u32, n: usize) {
+    /// Lay out `n` nodes of `hp` health around the origin from the run's seed
+    /// state: evenly spread in angle with some jitter, each at a distance
+    /// between the two of `radius` (in either order).
+    pub fn start(&mut self, state: u32, n: usize, hp: f32, radius: (f32, f32)) {
+        let (r_lo, r_hi) = (radius.0.min(radius.1), radius.0.max(radius.1));
+        self.node_hp = hp;
         let mut rng = Rng((state ^ 0x7f4a_7c15) | 1);
         let phase = rng.range(0.0, TAU);
         self.nodes.clear();
         self.spawned = 0;
         for k in 0..n {
             let a = phase + (k as f32 + rng.range(-0.25, 0.25)) * TAU / n as f32;
-            let r = rng.range(LAYOUT_RADIUS.0, LAYOUT_RADIUS.1);
+            let r = rng.range(r_lo, r_hi);
             self.nodes.push(Node {
                 x: fmath::cos(a) * r,
                 y: fmath::sin(a) * r,
-                hp: NODE_HP,
+                hp,
                 flash: 0.0,
                 timer: rng.range(0.0, SPAWN_EVERY),
                 bead_cd: 0.0,
@@ -121,7 +121,8 @@ impl Game {
     /// Lay out the nodes. Called when the run starts.
     pub(crate) fn formation_start(&mut self) {
         let n = self.goal() as usize;
-        self.formation.start(self.rng.0, n);
+        let t = &self.tune;
+        self.formation.start(self.rng.0, n, t[T_FORMATION_NODE_HP], (t[T_FORMATION_DIST_MIN], t[T_FORMATION_DIST_MAX]));
     }
 
     /// Scale of the edge-of-screen spawn rate.
@@ -141,6 +142,7 @@ impl Game {
         let (px, py) = (self.player.x, self.player.y);
         let ring = (self.view_w * self.view_w + self.view_h * self.view_h).sqrt() + 70.0;
         let active = ring * ACTIVE_RINGS;
+        let spawn_count = self.tune[T_FORMATION_SPAWN_COUNT] as usize;
         for i in 0..self.formation.nodes.len() {
             let n = &mut self.formation.nodes[i];
             n.flash = (n.flash - dt * 6.0).max(0.0);
@@ -158,7 +160,7 @@ impl Game {
                 continue;
             }
             n.timer += SPAWN_EVERY;
-            for _ in 0..SPAWN_COUNT {
+            for _ in 0..spawn_count {
                 if self.enemies.len() >= ENEMY_CAP {
                     break;
                 }
@@ -262,7 +264,7 @@ impl Game {
             let shadow = [INK[0], INK[1], INK[2], 0.25];
             self.put(n.x, n.y, 66.0, 22.0, 0.0, P_GROUND_SHADOW, 0.0, 0.0, shadow);
             if n.alive() {
-                let left = (n.hp / NODE_HP).clamp(0.0, 1.0);
+                let left = (n.hp / self.formation.node_hp.max(1.0)).clamp(0.0, 1.0);
                 let vermilion = [0.80, 0.27, 0.18, 1.0];
                 // The area where it spawns, and the stones of the formation.
                 self.put(n.x, n.y, 84.0, 34.0, 0.0, P_RING, 0.0, 0.2, [0.80, 0.27, 0.18, 0.5]);
@@ -310,6 +312,8 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const NODE_HP: f32 = TUNE_DEFAULT[T_FORMATION_NODE_HP];
 
     fn started(seed: u32) -> Game {
         let mut g = Game::new(seed);
@@ -542,5 +546,45 @@ mod tests {
             assert_eq!(g.progress(), 0.0, "seed {seed}: a node fell");
             assert!(g.time > 590.0);
         }
+    }
+
+    #[test]
+    fn tunes_change_the_layout() {
+        let mut g = Game::new(5);
+        g.set_view(640.0, 360.0);
+        g.set_tune(T_FORMATION_GOAL, 8.0);
+        g.set_tune(T_FORMATION_NODE_HP, 500.0);
+        g.set_tune(T_FORMATION_DIST_MIN, 3000.0);
+        g.set_tune(T_FORMATION_DIST_MAX, 3500.0);
+        g.start(M_FORMATION);
+        assert_eq!(g.formation.nodes.len(), 8);
+        assert_eq!(g.goal(), 8.0);
+        for n in &g.formation.nodes {
+            let d = n.x.hypot(n.y);
+            assert!((2990.0..3510.0).contains(&d), "node at {d}");
+            assert_eq!(n.hp, 500.0);
+        }
+    }
+
+    #[test]
+    fn degenerate_tunes_do_not_break_a_run() {
+        let mut g = Game::new(5);
+        g.set_view(640.0, 360.0);
+        g.set_tune(T_FORMATION_GOAL, 1.0);
+        g.set_tune(T_FORMATION_DIST_MIN, 6000.0);
+        g.set_tune(T_FORMATION_DIST_MAX, 300.0);
+        g.set_tune(T_FORMATION_SPAWN_COUNT, 0.0);
+        g.start(M_FORMATION);
+        let d = g.formation.nodes[0].x.hypot(g.formation.nodes[0].y);
+        assert!((299.0..6001.0).contains(&d));
+        go_to(&mut g, 0);
+        for _ in 0..400 {
+            g.player.hp = g.player.max_hp;
+            g.tick();
+            if g.choosing {
+                g.choose(0);
+            }
+        }
+        assert_eq!(g.formation.spawned, 0);
     }
 }

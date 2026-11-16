@@ -51,8 +51,13 @@ try {
     // A screen ignores clicks for its first 300 ms (INPUT_LOCK_MS in src/ui.js),
     // so a click right after the title appears can be dropped.
     await page.waitForTimeout(500);
-    // The title screen has one start button per mission; any of them will do.
-    await page.locator('#title [data-action="start"]').first().click();
+    // The title screen has one button per mission; any of them will do. It
+    // opens the mission's setup screen, which has the same lock before its
+    // start button works.
+    await page.locator('#title [data-action="setup"]').first().click();
+    await page.locator('#setup').waitFor({ state: 'visible', timeout: TIMEOUT_MS });
+    await page.waitForTimeout(500);
+    await page.locator('#setup [data-action="start"]').click();
     await page.locator('#hud').waitFor({ state: 'visible', timeout: TIMEOUT_MS });
     await page.waitForTimeout(PLAY_MS);
     if (await page.locator('#error').isVisible()) problems.push('the "Cannot start" screen appeared during the run');

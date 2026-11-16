@@ -10,19 +10,14 @@ use crate::defs::*;
 use crate::fmath;
 use core::f32::consts::TAU;
 
-/// How many relics there are: the goal of the mission, from the content file.
-pub const ITEMS: usize = MISSION_GOAL[M_RETRIEVAL] as usize;
+/// The most relics a run can have: the top of the goal tune's range.
+const MAX_ITEMS: usize = TUNE_MAX[T_RETRIEVAL_GOAL] as usize;
 /// The drop-off is the start point.
 pub const HOME: (f32, f32) = (0.0, 0.0);
 /// A relic is picked up when the player is this close to it.
 pub const PICKUP_R: f32 = 40.0;
 /// Carried relics are delivered when the player is this close to the drop-off.
 pub const DROP_R: f32 = 80.0;
-/// Fraction of walking speed lost per carried relic.
-pub const SLOW_PER_ITEM: f32 = 0.12;
-/// Relics lie this far from the drop-off, each in its own third of the circle.
-pub const MIN_DIST: f32 = 5000.0;
-pub const MAX_DIST: f32 = 8000.0;
 /// How far inside the screen edge the pointing markers sit.
 const EDGE: f32 = 44.0;
 
@@ -45,41 +40,71 @@ pub struct Moved {
     pub delivered: u32,
 }
 
-#[derive(Default)]
 pub struct Retrieval {
     /// True once a retrieval run has started. Other missions leave this off.
     active: bool,
-    pub items: [Item; ITEMS],
+    /// Room for the most relics there can be; only the first `count` are in play.
+    items: [Item; MAX_ITEMS],
+    /// How many relics there are: the goal of the mission, `T_RETRIEVAL_GOAL`.
+    count: usize,
+    /// Fraction of walking speed lost per carried relic, `T_RETRIEVAL_SLOW`.
+    slow: f32,
+}
+
+impl Default for Retrieval {
+    /// Nothing started, holding the default number of relics, so the checksum
+    /// of the other missions is the same as it always was.
+    fn default() -> Self {
+        Retrieval {
+            active: false,
+            items: [Item::default(); MAX_ITEMS],
+            count: TUNE_DEFAULT[T_RETRIEVAL_GOAL] as usize,
+            slow: TUNE_DEFAULT[T_RETRIEVAL_SLOW],
+        }
+    }
 }
 
 impl Retrieval {
-    /// Lay the relics out for a new run, using the run's own generator.
-    pub fn reset(&mut self, rng: &mut Rng) {
+    /// Lay the relics out for a new run, using the run's own generator and the
+    /// run's tunes. Relics lie between the two distances from the drop-off (in
+    /// either order), each in its own share of the circle.
+    pub fn reset(&mut self, rng: &mut Rng, tune: &[f32; N_TUNES]) {
         self.active = true;
-        let turn = TAU / ITEMS as f32;
-        for (k, item) in self.items.iter_mut().enumerate() {
+        self.count = (tune[T_RETRIEVAL_GOAL] as usize).clamp(1, MAX_ITEMS);
+        self.slow = tune[T_RETRIEVAL_SLOW];
+        let (d_min, d_max) = (
+            tune[T_RETRIEVAL_DIST_MIN].min(tune[T_RETRIEVAL_DIST_MAX]),
+            tune[T_RETRIEVAL_DIST_MIN].max(tune[T_RETRIEVAL_DIST_MAX]),
+        );
+        let turn = TAU / self.count as f32;
+        for (k, item) in self.items.iter_mut().take(self.count).enumerate() {
             let a = (k as f32 + rng.range(0.1, 0.9)) * turn;
-            let d = rng.range(MIN_DIST, MAX_DIST);
+            let d = rng.range(d_min, d_max);
             *item =
                 Item { x: HOME.0 + fmath::cos(a) * d, y: HOME.1 + fmath::sin(a) * d, carried: false, delivered: false };
         }
     }
 
+    /// The relics of the run.
+    pub fn items(&self) -> &[Item] {
+        &self.items[..self.count]
+    }
+
     pub fn carried(&self) -> u32 {
-        self.items.iter().filter(|i| i.carried).count() as u32
+        self.items().iter().filter(|i| i.carried).count() as u32
     }
 
     pub fn delivered(&self) -> u32 {
-        self.items.iter().filter(|i| i.delivered).count() as u32
+        self.items().iter().filter(|i| i.delivered).count() as u32
     }
 
     /// Multiplier on walking speed. 1 when nothing is carried.
     pub fn speed_factor(&self) -> f32 {
-        1.0 - SLOW_PER_ITEM * self.carried() as f32
+        1.0 - self.slow * self.carried() as f32
     }
 
     pub fn won(&self) -> bool {
-        self.active && self.delivered() as usize >= ITEMS
+        self.active && self.delivered() as usize >= self.count
     }
 
     /// Pick up relics the player stands on, and deliver the carried ones when
@@ -91,7 +116,7 @@ impl Retrieval {
         }
         let (hx, hy) = (px - HOME.0, py - HOME.1);
         let home = hx * hx + hy * hy < DROP_R * DROP_R;
-        for item in self.items.iter_mut() {
+        for item in self.items[..self.count].iter_mut() {
             if item.delivered {
                 continue;
             }
@@ -115,7 +140,7 @@ impl Retrieval {
     /// Feed the mission state into the run's checksum.
     pub fn mix(&self, mix: &mut impl FnMut(u32)) {
         mix(self.active as u32);
-        for i in &self.items {
+        for i in self.items() {
             mix(i.x.to_bits());
             mix(i.y.to_bits());
             mix(i.carried as u32 | (i.delivered as u32) << 1);
@@ -130,10 +155,10 @@ impl Retrieval {
         c.put(HOME, (DROP_R, DROP_R), 0.0, P_RING, [JADE[0], JADE[1], JADE[2], 0.7], 0.2);
         c.put(HOME, (DROP_R * 0.5, DROP_R * 0.5), 0.0, P_RING, [JADE[0], JADE[1], JADE[2], 0.45], 0.6);
         let shadow = [INK[0], INK[1], INK[2], 0.2];
-        for (k, item) in self.items.iter().enumerate() {
+        for (k, item) in self.items().iter().enumerate() {
             if item.delivered {
                 // Delivered relics stack up beside the drop-off marker.
-                let x = HOME.0 + (k as f32 - (ITEMS as f32 - 1.0) * 0.5) * 22.0;
+                let x = HOME.0 + (k as f32 - (self.count as f32 - 1.0) * 0.5) * 22.0;
                 c.put((x, HOME.1 - 8.0), (7.0, 9.0), 0.0, P_GEM, GOLD, k as f32 * 0.31);
             } else if !item.carried {
                 let pose = (((anim * 3.0 + k as f32 * 1.7).floor() as i32) & 1) as f32;
@@ -162,7 +187,7 @@ impl Retrieval {
             let bob = fmath::sin(anim * 5.0 + k as f32 * 2.0) * 2.0;
             c.put((x, player.1 - 96.0 + bob), (8.0, 10.0), 0.0, P_GEM, GOLD, k as f32 * 0.31);
         }
-        for item in self.items.iter().filter(|i| !i.carried && !i.delivered) {
+        for item in self.items().iter().filter(|i| !i.carried && !i.delivered) {
             c.marker((item.x, item.y), GOLD);
         }
         if carried > 0 {
@@ -210,6 +235,11 @@ impl Canvas<'_> {
 mod tests {
     use super::*;
     use crate::game::{Enemy, Game, TICK};
+
+    const ITEMS: usize = TUNE_DEFAULT[T_RETRIEVAL_GOAL] as usize;
+    const SLOW_PER_ITEM: f32 = TUNE_DEFAULT[T_RETRIEVAL_SLOW];
+    const MIN_DIST: f32 = TUNE_DEFAULT[T_RETRIEVAL_DIST_MIN];
+    const MAX_DIST: f32 = TUNE_DEFAULT[T_RETRIEVAL_DIST_MAX];
 
     /// A retrieval run with the weapons parked, as far from any trouble as the
     /// first steps are.
@@ -370,15 +400,16 @@ mod tests {
 
     #[test]
     fn the_same_seed_gives_the_same_layout() {
-        let layout = |seed| run(seed).retrieval.items.map(|i| (i.x.to_bits(), i.y.to_bits()));
+        let layout =
+            |seed| run(seed).retrieval.items().iter().map(|i| (i.x.to_bits(), i.y.to_bits())).collect::<Vec<_>>();
         assert_eq!(layout(21), layout(21));
         assert_ne!(layout(21), layout(22));
         for seed in 1..50 {
             let g = run(seed);
-            for (k, a) in g.retrieval.items.iter().enumerate() {
+            for (k, a) in g.retrieval.items().iter().enumerate() {
                 let d = (a.x * a.x + a.y * a.y).sqrt();
                 assert!((MIN_DIST - 1.0..=MAX_DIST + 1.0).contains(&d), "seed {seed}: item {k} at {d}");
-                for b in &g.retrieval.items[k + 1..] {
+                for b in &g.retrieval.items()[k + 1..] {
                     let far = ((a.x - b.x).powi(2) + (a.y - b.y).powi(2)).sqrt();
                     assert!(far > 1500.0, "seed {seed}: two items {far} apart");
                 }
@@ -426,7 +457,7 @@ mod tests {
     /// and home. `chain` collects every relic before going home.
     fn walker_input(g: &Game, chain: bool) -> (f32, f32) {
         let (px, py) = (g.player.x, g.player.y);
-        let nearest = g.retrieval.items.iter().filter(|i| !i.carried && !i.delivered).min_by(|a, b| {
+        let nearest = g.retrieval.items().iter().filter(|i| !i.carried && !i.delivered).min_by(|a, b| {
             let da = (a.x - px).powi(2) + (a.y - py).powi(2);
             let db = (b.x - px).powi(2) + (b.y - py).powi(2);
             da.partial_cmp(&db).unwrap()
@@ -514,5 +545,52 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn tunes_change_the_relics() {
+        let mut g = Game::new(3);
+        g.set_tune(T_RETRIEVAL_GOAL, 6.0);
+        g.set_tune(T_RETRIEVAL_DIST_MIN, 1000.0);
+        g.set_tune(T_RETRIEVAL_DIST_MAX, 1500.0);
+        g.set_tune(T_RETRIEVAL_SLOW, 0.2);
+        g.start(M_RETRIEVAL);
+        assert_eq!(g.goal(), 6.0);
+        assert_eq!(g.retrieval.items().len(), 6);
+        for i in g.retrieval.items() {
+            let d = i.x.hypot(i.y);
+            assert!((999.0..=1501.0).contains(&d), "relic at {d}");
+        }
+        carry_six(&mut g);
+        assert_eq!(g.retrieval.carried(), 6);
+        assert!((g.retrieval.speed_factor() - (1.0 - 0.2 * 6.0)).abs() < 1.0e-6);
+    }
+
+    fn carry_six(g: &mut Game) {
+        for k in 0..6 {
+            let (x, y) = (g.retrieval.items()[k].x, g.retrieval.items()[k].y);
+            tick_at(g, x, y);
+        }
+    }
+
+    #[test]
+    fn degenerate_tunes_do_not_break_a_run() {
+        let mut g = Game::new(3);
+        g.set_tune(T_RETRIEVAL_GOAL, 1.0);
+        g.set_tune(T_RETRIEVAL_DIST_MIN, 12000.0);
+        g.set_tune(T_RETRIEVAL_DIST_MAX, 500.0);
+        g.set_tune(T_RETRIEVAL_SLOW, 0.0);
+        g.start(M_RETRIEVAL);
+        let i = g.retrieval.items()[0];
+        assert!((499.0..=12001.0).contains(&i.x.hypot(i.y)));
+        for _ in 0..400 {
+            g.player.hp = g.player.max_hp;
+            g.tick();
+        }
+        assert_eq!(g.retrieval.speed_factor(), 1.0);
+        let (x, y) = (i.x, i.y);
+        tick_at(&mut g, x, y);
+        tick_at(&mut g, 0.0, 0.0);
+        assert!(g.won);
     }
 }

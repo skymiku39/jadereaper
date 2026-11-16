@@ -66,6 +66,60 @@ pub const N_MISSIONS: usize = 12;
 #[rustfmt::skip]
 pub const MISSION_GOAL: [f32; N_MISSIONS] = [0.0, 300.0, 1500.0, 5.0, 10.0, 3.0, 3000.0, 21000.0, 300.0, 18000.0, 12000.0, 6.0];
 
+// Tunes: numbers the setup screen can change for a test run, with their range.
+pub const T_SPAWN_RATE: usize = 0;
+pub const T_ENEMY_SPEED: usize = 1;
+pub const T_ENEMY_HP: usize = 2;
+pub const T_SURVIVE_GOAL: usize = 3;
+pub const T_KILLS_GOAL: usize = 4;
+pub const T_FORMATION_GOAL: usize = 5;
+pub const T_FORMATION_NODE_HP: usize = 6;
+pub const T_FORMATION_DIST_MIN: usize = 7;
+pub const T_FORMATION_DIST_MAX: usize = 8;
+pub const T_FORMATION_SPAWN_COUNT: usize = 9;
+pub const T_ARENA_GOAL: usize = 10;
+pub const T_ARENA_SIZE: usize = 11;
+pub const T_ARENA_HP_PER_WAVE: usize = 12;
+pub const T_RETRIEVAL_GOAL: usize = 13;
+pub const T_RETRIEVAL_DIST_MIN: usize = 14;
+pub const T_RETRIEVAL_DIST_MAX: usize = 15;
+pub const T_RETRIEVAL_SLOW: usize = 16;
+pub const T_PURSUIT_GOAL: usize = 17;
+pub const T_PURSUIT_LEG_LEN: usize = 18;
+pub const T_PURSUIT_SPEED: usize = 19;
+pub const T_PURSUIT_START_DIST: usize = 20;
+pub const T_PURSUIT_PACK: usize = 21;
+pub const T_ESCORT_LEG_LEN: usize = 22;
+pub const T_ESCORT_SPEED: usize = 23;
+pub const T_ESCORT_HP: usize = 24;
+pub const T_ESCORT_FOLLOW: usize = 25;
+pub const T_HOLD_GOAL: usize = 26;
+pub const T_HOLD_RADIUS: usize = 27;
+pub const T_HOLD_POINT_HP: usize = 28;
+pub const T_HOLD_SHARE: usize = 29;
+pub const T_ESCAPE_GOAL: usize = 30;
+pub const T_ESCAPE_RING_COUNT: usize = 31;
+pub const T_ESCAPE_AHEAD_RATE: usize = 32;
+pub const T_ESCAPE_BRUTE_SHARE: usize = 33;
+pub const T_BOSS_GOAL: usize = 34;
+pub const T_BOSS_WARMUP: usize = 35;
+pub const T_BOSS_WALK_SPEED: usize = 36;
+pub const T_BOSS_SPAWN_SCALE: usize = 37;
+pub const T_VENDETTA_GOAL: usize = 38;
+pub const T_VENDETTA_DIST_MIN: usize = 39;
+pub const T_VENDETTA_DIST_MAX: usize = 40;
+pub const T_VENDETTA_GROUP_HP: usize = 41;
+pub const N_TUNES: usize = 42;
+#[rustfmt::skip]
+pub const TUNE_DEFAULT: [f32; N_TUNES] = [1.0, 1.0, 1.0, 300.0, 1500.0, 5.0, 2000.0, 1300.0, 2000.0, 3.0, 10.0, 1.0, 0.1, 3.0, 5000.0, 8000.0, 0.12, 3000.0, 3600.0, 170.0, 800.0, 8.0, 3000.0, 70.0, 360.0, 240.0, 300.0, 160.0, 800.0, 3.0, 18000.0, 36.0, 20.0, 0.25, 12000.0, 90.0, 85.0, 0.4, 6.0, 16000.0, 20000.0, 240.0];
+#[rustfmt::skip]
+pub const TUNE_MIN: [f32; N_TUNES] = [0.0, 0.5, 0.25, 30.0, 100.0, 1.0, 250.0, 300.0, 300.0, 0.0, 1.0, 0.25, 0.0, 1.0, 500.0, 500.0, 0.0, 500.0, 1200.0, 100.0, 300.0, 0.0, 500.0, 30.0, 60.0, 100.0, 30.0, 60.0, 100.0, 1.0, 2000.0, 0.0, 0.0, 0.0, 2000.0, 0.0, 40.0, 0.0, 1.0, 2000.0, 2000.0, 60.0];
+#[rustfmt::skip]
+pub const TUNE_MAX: [f32; N_TUNES] = [4.0, 4.0, 4.0, 900.0, 5000.0, 8.0, 6000.0, 6000.0, 6000.0, 8.0, 10.0, 3.0, 0.5, 6.0, 12000.0, 12000.0, 0.3, 12000.0, 9600.0, 220.0, 2000.0, 24.0, 5000.0, 160.0, 1200.0, 500.0, 600.0, 400.0, 3000.0, 6.0, 30000.0, 120.0, 80.0, 0.5, 30000.0, 180.0, 160.0, 1.0, 12.0, 30000.0, 30000.0, 1200.0];
+// The tune that holds each mission's goal; N_TUNES where the goal cannot be changed.
+#[rustfmt::skip]
+pub const MISSION_GOAL_TUNE: [usize; N_MISSIONS] = [N_TUNES, T_SURVIVE_GOAL, T_KILLS_GOAL, T_FORMATION_GOAL, T_ARENA_GOAL, T_RETRIEVAL_GOAL, T_PURSUIT_GOAL, N_TUNES, T_HOLD_GOAL, T_ESCAPE_GOAL, T_BOSS_GOAL, T_VENDETTA_GOAL];
+
 // HUD state buffer: size and the index of each field.
 pub const STATE_FLOATS: usize = 60;
 pub const S_HP: usize = 0;
