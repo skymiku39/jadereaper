@@ -97,6 +97,9 @@ export function createAudio() {
       tone({ dur: 0.7, type: 'sawtooth', f0: 90, f1: 60, gain: 0.3 });
       tone({ dur: 0.7, type: 'sawtooth', f0: 95, f1: 63, gain: 0.3 });
     },
+    [EVENT.WIN]: () => {
+      [0, 2, 4, 5, 4, 5].forEach((n, i) => tone({ dur: 0.5, type: 'triangle', f0: PENTATONIC[n], gain: 0.28, delay: i * 0.13 }));
+    },
     ui: () => noise({ dur: 0.035, f0: 2600, q: 4, gain: 0.2 }),
     confirm: () => {
       noise({ dur: 0.05, f0: 1800, q: 2, gain: 0.25 });

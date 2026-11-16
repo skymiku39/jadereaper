@@ -34,7 +34,7 @@
         <div class="hp"><div class="hp-fill" id="hpFill"></div></div>
         <span id="hpText">100</span>
       </div>
-      <div class="tag time-tag" id="timeText">0:00</div>
+      <div class="tag time-tag"><small id="goalText"></small><span id="timeText">0:00</span></div>
       <div class="tag kills-tag"><span class="seal-dot">斬</span> <span id="killsText">0</span></div>
     </div>
     <div class="chips" id="chips"></div>
@@ -46,7 +46,8 @@
       <h1 data-i18n="title.name">Jade Reaper</h1>
       <p class="sub" data-i18n="title.sub">Cut down the ink spirits. Last as long as you can.</p>
       <div class="buttons">
-        <button data-action="start" data-i18n="title.begin">Begin</button>
+        <!-- One button per mission, built by ui.js from the generated mission list. -->
+        <div class="buttons missions" id="missions"></div>
         <button data-action="settings" data-i18n="title.settings">Settings</button>
       </div>
       <p class="records" id="records"></p>
@@ -100,6 +101,19 @@
       <dl class="stats" id="stats"></dl>
       <div class="buttons">
         <button data-action="start" data-i18n="over.again">Try again</button>
+        <button data-action="quit" data-i18n="over.quit">Title</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="won" hidden>
+    <div class="sheet">
+      <div class="stamp record-stamp" data-i18n="won.stamp">Mission<br>complete</div>
+      <h2 data-i18n="won.title">Mission complete</h2>
+      <p class="sub" id="wonMission"></p>
+      <dl class="stats" id="wonStats"></dl>
+      <div class="buttons">
+        <button data-action="start" data-i18n="won.again">Play again</button>
         <button data-action="quit" data-i18n="over.quit">Title</button>
       </div>
     </div>

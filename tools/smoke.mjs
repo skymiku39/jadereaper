@@ -48,7 +48,8 @@ try {
     consoleErrors = consoleErrors.filter((text) => !text.includes(shown));
     outcome = noWebgpu ? `no WebGPU here; the "Cannot start" screen shows: ${shown}` : 'the game could not start';
   } else {
-    await page.locator('#title [data-action="start"]').click();
+    // The title screen has one start button per mission; any of them will do.
+    await page.locator('#title [data-action="start"]').first().click();
     await page.locator('#hud').waitFor({ state: 'visible', timeout: TIMEOUT_MS });
     await page.waitForTimeout(PLAY_MS);
     if (await page.locator('#error').isVisible()) problems.push('the "Cannot start" screen appeared during the run');
