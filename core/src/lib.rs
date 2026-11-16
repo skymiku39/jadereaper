@@ -9,6 +9,7 @@
 //! - events: `jr_event_count()` x 4 floats `[type, x, y, value]` for sound
 
 pub mod defs;
+pub mod fmath;
 pub mod game;
 pub mod generated;
 
@@ -48,9 +49,30 @@ pub extern "C" fn jr_input(mx: f32, my: f32) {
     g().input = (mx, my);
 }
 
+/// Advance by `dt` seconds of real time. The simulation moves in whole steps
+/// of 1/60 s; see `Game::update`.
 #[no_mangle]
 pub extern "C" fn jr_update(dt: f32) {
     g().update(dt);
+}
+
+/// Steps taken since the last reset.
+#[no_mangle]
+pub extern "C" fn jr_ticks() -> u32 {
+    g().ticks
+}
+
+/// Checksum of the simulation state, for comparing two runs.
+#[no_mangle]
+pub extern "C" fn jr_state_hash() -> u32 {
+    g().hash()
+}
+
+/// Play a scripted run on a separate game and return its final state hash.
+/// The determinism check compares this with the native build.
+#[no_mangle]
+pub extern "C" fn jr_scripted_run(seed: u32, ticks: u32) -> u32 {
+    game::scripted_run(seed, ticks)
 }
 
 /// Pick one of the offered upgrades (0..2).
@@ -117,6 +139,55 @@ mod tests {
         }
         assert!(picks > 5, "expected level ups, got {picks}");
         assert!(game.kills > 50, "expected kills, got {}", game.kills);
+    }
+
+    #[test]
+    fn same_seed_and_inputs_give_the_same_run() {
+        let a = game::scripted_run(42, 60 * 120);
+        assert_eq!(a, game::scripted_run(42, 60 * 120));
+        assert_ne!(a, game::scripted_run(44, 60 * 120));
+    }
+
+    /// Drive two games with the same inputs per step, one at 60 frames per
+    /// second and one at 30 with a pause in the middle.
+    #[test]
+    fn the_run_does_not_depend_on_the_frame_rate() {
+        let mut fast = Game::new(5);
+        let mut slow = Game::new(5);
+        fast.running = true;
+        slow.running = true;
+        let mut bot = Rng(77);
+        for frame in 0..(30 * 60) {
+            let input = (bot.range(-1.0, 1.0), bot.range(-1.0, 1.0));
+            fast.input = input;
+            slow.input = input;
+            fast.update(game::TICK);
+            fast.update(game::TICK);
+            slow.update(game::TICK * 2.0);
+            if frame == 400 {
+                slow.update(0.0);
+            }
+            assert_eq!(fast.choosing, slow.choosing);
+            if fast.choosing {
+                fast.choose(0);
+                slow.choose(0);
+            }
+        }
+        assert_eq!(fast.ticks, 2 * 30 * 60);
+        assert_eq!(fast.ticks, slow.ticks);
+        assert_eq!(fast.hash(), slow.hash());
+    }
+
+    #[test]
+    fn time_shorter_than_a_step_is_carried_over() {
+        let mut game = Game::new(1);
+        game.running = true;
+        for _ in 0..4 {
+            game.update(game::TICK / 4.0);
+        }
+        assert_eq!(game.ticks, 1);
+        game.update(0.0);
+        assert_eq!(game.ticks, 1);
     }
 
     #[test]
