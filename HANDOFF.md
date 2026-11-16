@@ -1,57 +1,38 @@
 # Handoff
 
+The repository is the user's one-person version of the game (decided 2026-11-15 and 2026-11-16). The goal is to build the user's own design in `docs/design.md`; nobody else signs work off. Remotes: `origin` is the user's repository `skymiku39/jadereaper`, `upstream` is `pomodorozhong/jadereaper` (read-only for this account; do not open issues or PRs there unless asked).
+
+Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.localhost` path writes `.git` files as root and breaks later commits.
+
 ## In progress
 
-### docs/own-pages-url
+### chore/solo-housekeeping
 
-- Task: change the play link in `README.md` and the Pages gotcha in `docs/README.md` from the upstream site to the fork's, https://skymiku39.github.io/jadereaper/. The user asked for this on 2026-11-15. Not linked to any issue.
+- Task: phase 0 of the plan agreed on 2026-11-16. Record the one-person process and the mission list, and fix stale documents, before feature work starts.
 - PR: none. Not pushed.
-- Code checkpoint: 0ded95a (`docs: point the play link at the fork's pages site`), on `main` at d579ad3.
-- Fork settings changed the same day, at the user's request: GitHub Pages is on for `skymiku39/jadereaper` with the GitHub Actions source, and the `github-pages` environment allows only `main`. The `Pages` run for d579ad3 was rerun and passed; `Smoke` and `Fonts` passed too. This replaces the "Pages deploy has not been set up" remark in the `integrate/own-version` subsection.
-- Verification: documentation only; no checks were run. The deployed site answers 200 for `index.html`, `style.css`, `src/main.js`, `src/generated.js` and the wasm (69,732 bytes, the same as the local build). Not checked: playing it in a browser.
-- Done on 2026-11-15, at the user's word that the fork is the source of truth: the `pomodorozhong` mentions in `CONTRIBUTING.md`, `.github/ISSUE_TEMPLATE/` and `tools/sync-labels.sh` now name `skymiku39`.
-- Next action: push this branch to `fork` and fast-forward `fork/main` (P-14, approved by the user on 2026-11-15).
-- Pending: none. P-14 was approved on 2026-11-15.
-
-### integrate/own-version
-
-- Task: start the user's own version of the game on the fork `skymiku39/jadereaper` (remote `fork`), instead of contributing to `pomodorozhong/jadereaper` (remote `origin`). The user decided this on 2026-11-15. This branch starts from `origin/main` at a0d53d1 and adds three commits cherry-picked from earlier local branches: the game design document and roadmap steps 1 and 4 (from `docs/game-design`, the closed #6), the weapon and upgrade behaviour tests (from `test/weapon-behaviour`, the closed #13), and the content file with its id generator (from `feat/content-generator`, never pushed). Not linked to any issue.
-- PR: none. On 2026-11-15 the user approved pushing this branch to the fork as its `main` by fast-forward (the old P-13). `fork/main` and the local `main` now point at this branch's tip, and the local `main` tracks `fork/main`.
-- Code checkpoint: 8fe6834 (`feat(build): generate ids from a single content file`), on `origin/main` at a0d53d1.
-- Conflicts resolved in the last cherry-pick: `README.md` (kept the upstream `tools/` row and added the `tools/gen/` row) and `docs/README.md` (kept the upstream gotchas and replaced "Ids are mirrored by hand" with "Ids are generated").
-- Verification at 8fe6834 (Rust 1.100, Linux x86-64 under WSL): `cargo test --release --manifest-path core/Cargo.toml` passed, 42 unit tests and 16 content tests; `./build.sh` passed and left the committed wasm and generated files unchanged; `node --check` passed on every `src/*.js`. Not run: `tools/check-fonts.sh` and `npm run smoke` (`node_modules/` is not installed here).
-- Still to decide for the user's own version: whether `CONTRIBUTING.md`, the issue forms, the label files and the Proposal rule in `AGENTS.md` and below still apply on the fork (they describe the upstream maintainer's process); whether to rename the remotes so `origin` is the fork; and whether new work on the fork goes through PRs there. The fork has issues turned off, and its Pages deploy has not been set up, so the `Pages` workflow may fail on the fork until it is. `ROADMAP.md` "Current state" still says ids are mirrored by hand.
-- Upstream: the Proposals #28 and #29 on `pomodorozhong/jadereaper` stay open by the user's choice. They have no labels, because this account cannot set labels there.
-- Run git inside WSL only. Running Windows git on the `\\wsl.localhost` path writes `.git` files as root and breaks later commits.
-- Note: the `ci/smoke-comment` subsection below is stale; its PR merged upstream as #26. The local branches `docs/game-design`, `test/weapon-behaviour` and `feat/content-generator` and their worktrees are now contained in this branch, apart from their own handoff commits.
-- Next action: ask the user about the open choices above, then pick new work from `Ranked work`. Take `gh` commands to the fork with `--repo skymiku39/jadereaper`; without it `gh` targets the upstream.
-
-### ci/smoke-comment
-
-- Task: correct the comments at the top of `.github/workflows/smoke.yml` and `tools/smoke.mjs`, which said CI usually has no WebGPU and checks the "Cannot start" screen. CI runs showed the opposite: Chromium finds a software adapter on the Ubuntu runner and plays a few seconds of a run (answered on #17, now closed). A comment-only correction, which `CONTRIBUTING.md` lets skip an issue. Local branch only, not linked to any issue. It also carries this handoff refresh after #20, #23 and #24 merged.
-- PR: none yet.
-- Code checkpoint: 9c01200 (`ci: say which path the smoke test takes on the runner`), on `main` at f739727.
-- Verification at 9c01200: `node --check tools/smoke.mjs` passes and `smoke.yml` parses (PyYAML via uvx). Not run: `npm run smoke`, `cargo test`, `./build.sh` (comments only, no behaviour change); the `Smoke` job runs on the PR.
-- Next action: P-12, then open the PR with the `open-pr` skill.
-- Pending: **P-12** push this branch and open a PR for it. Why: pushing and opening a PR need approval. Blocks: the corrected comments and this handoff reaching `main`.
+- Code checkpoint: see `git log`; the branch is cut from `main` at 82e268d.
+- Changed: `CONTRIBUTING.md`, `AGENTS.md` and the PR template drop the issue-first Proposal process; `docs/design.md` gains section 4.2.1, the mission type list (seven settled, four suggested by the agent and waiting for the user's answer); `ROADMAP.md` gets a current "Current state" and the agreed working order; the generator command in the `content/game.toml` comment is corrected; the remotes were renamed (`fork` to `origin`, the old `origin` to `upstream`).
+- Verification on 2026-11-16 (Rust 1.100, Node 24.22.3, Linux x86-64 under WSL): `cargo test --release --manifest-path core/Cargo.toml` passed (42 unit tests, 16 content tests); `./build.sh` passed and left the committed wasm and generated files unchanged; `node --check` passed on every `src/*.js` and `tools/*.mjs`. `npm run smoke` could not run here: Chromium fails to start because the system library `libnspr4.so` is missing. Fixing it needs `sudo npx playwright install-deps chromium`, which the user has to run.
+- Environment gaps found: `rustfmt` and `clippy` are not installed (`rustup component add rustfmt clippy`); `gh` is not installed inside WSL (the Windows one works for read-only calls); Node is 24 while `.node-version` and `package.json` ask for 26.
+- Next action: P-15, then start item 1 of `Ranked work`.
+- Pending: **P-15** push this branch to `origin`, open a PR on `skymiku39/jadereaper` and merge it once CI passes. Why: pushing and merging need the user's go-ahead. Blocks: the new process and mission list reaching `main`.
 
 ## Ranked work
 
-Roadmap steps are detailed in `ROADMAP.md`. They become issues once P-02 is approved.
+The working order agreed with the user on 2026-11-16. Details of each roadmap step are in `ROADMAP.md`; mission types are in `docs/design.md`, section 4.2.1.
 
-1. Roadmap step 5, the rest of CI: the wasm drift check, cargo fmt and clippy, and a JavaScript check. The Pages deploy (#5) and the smoke test (#24) are done. Planned on the local branch `ci/core-checks`, which needs an `accepted` Proposal first (see that branch's own `HANDOFF.md`)
-2. Decide which areas need the maintainer's sign-off before contributors build on them, made on an issue and recorded in `docs/decisions/`. Blocks #14 (`blocked`)
-3. #3: pick English UI fonts to match the Chinese set (`accepted`; can run alongside item 1)
-4. #16: run the Fonts workflow only when font tools change (`accepted`, small)
-5. #18: smoke test connects to 127.0.0.1 instead of localhost (`accepted`, small)
-6. Roadmap step 1: data-driven content and puppet rigs (unblocks most later steps)
-7. Roadmap step 2: game feel pass (can run alongside step 3)
-8. Roadmap step 3: fixed time step, replays and a headless balance tool
-9. Roadmap step 4: run structure and meta progression (after step 1)
-10. Roadmap step 6: touch controls and a WebGL2 fallback
-11. Roadmap step 7: scale to thousands of enemies
+1. The rest of CI (roadmap step 5): run `cargo test` in CI, fail on a stale wasm or stale generated files, `cargo fmt --check`, `cargo clippy`, `node --check`. With it, two small fixes: run the Fonts workflow only when font tools or text change, and make the smoke test connect to 127.0.0.1 instead of localhost.
+2. Fixed time step, replays and the headless balance tool (roadmap step 3).
+3. Mission framework: objective, win condition, result screen, mission picker on the title screen. First mission: survive a time.
+4. One or two more mission prototypes (kill a count, then the user's pick).
+5. Data-driven content rewrite (roadmap step 1), then martial arts × magic elements and reactions. Needs the user's answers first: what each of the four elements does, which pairs react, and how many martial arts can be held at once (design document, open items 2 and 4).
+6. Remaining mission prototypes, the game feel pass (roadmap step 2), then the rest of roadmap step 4.
+7. English UI fonts to match the Chinese set.
+8. Touch controls and a WebGL2 fallback (roadmap step 6); scaling to thousands of enemies (roadmap step 7).
 
 ## Pending
 
-- **P-02** File one GitHub issue per roadmap step (seven issues, titles as in `ROADMAP.md`, body copied from each step's section, step 1 to 4 in a "Playable game" milestone). Under `CONTRIBUTING.md` they would go in as Proposals, labelled `enhancement` and `proposal`. Why: filing issues needs approval. Blocks: nothing else; `ROADMAP.md` covers the details until then.
-- **P-10** Delete the local backup branches `backup/contribution-flow-v1` to `-v7`, earlier rebuilds of the merged #20. Why: they hold older drafts not in any surviving branch. Blocks: nothing.
+- **P-16** Delete the old local branches `docs/game-design`, `feat/content-generator`, `test/weapon-behaviour`, `integrate/own-version` and `docs/own-pages-url`, the worktrees under `.worktrees/`, and the remote branches `docs/game-design`, `test/weapon-behaviour` and `docs/own-pages-url` on `skymiku39/jadereaper`. Their code is on `main` (cherry-picked, so the first three do not show as merged); only their own handoff commits would be lost. Why: deleting branches needs approval. Blocks: nothing.
+- **P-17** The user's answer on the four suggested mission types in `docs/design.md` 4.2.1 (break the formation, pursuit, retrieval, arena waves). Blocks: nothing until item 6 of `Ranked work`.
+
+Closed on 2026-11-16: P-02 (roadmap issues) is withdrawn, since issues are off and `ROADMAP.md` is the plan; P-10 is obsolete, the backup branches no longer exist; P-12 is obsolete, that change merged upstream as #26; P-14 is done, `main` on the user's repository is at 82e268d.
