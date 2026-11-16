@@ -77,7 +77,9 @@ export function createUI({ onAction }) {
     set('timeText', 'text', formatTime(timed ? Math.ceil(goal - progress) : time));
     set('goalText', 'text', timed ? t(`mission.${mission.name}.hud`) : '');
     set('goalText', 'display', timed ? '' : 'none');
-    set('killsText', 'text', String(kills));
+    // A kill-count mission shows how many are left to go.
+    const counted = mission.id === MISSION_IDS.kills;
+    set('killsText', 'text', counted ? `${Math.min(kills, goal)} / ${goal}` : String(kills));
     const sig = getLang() + upgrades.join(',');
     if (cache.chips !== sig) {
       cache.chips = sig;
