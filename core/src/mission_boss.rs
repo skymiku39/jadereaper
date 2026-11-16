@@ -13,13 +13,11 @@ use super::*;
 
 // ------------------------------------------------------------------ numbers
 
-/// Seconds of normal horde before the boss arrives.
-pub const WARMUP: f32 = 90.0;
-/// Fraction of the normal spawn rate once the boss is here.
-const SPAWN_SCALE: f32 = 0.4;
+// Three numbers come from the run's tunes: the seconds of normal horde before
+// the boss arrives (`T_BOSS_WARMUP`), the fraction of the normal spawn rate
+// once the boss is here (`T_BOSS_SPAWN_SCALE`) and its walking speed toward the
+// player (`T_BOSS_WALK_SPEED`).
 
-/// Walking speed toward the player.
-const WALK_SPEED: f32 = 85.0;
 /// Farther than `NEAR_DIST` from the player, the boss speeds up by `CATCH_GAIN`
 /// per unit of distance, up to `CATCH_SPEED` (faster than the player at any
 /// speed level), so it cannot be left behind. Patterns start within
@@ -210,7 +208,7 @@ impl Game {
     /// Seconds until the boss arrives, 0 once it is here or in other missions.
     pub(super) fn boss_wait(&self) -> f32 {
         if self.mission == M_BOSS && self.boss.id == 0 {
-            (WARMUP - self.time).max(0.0)
+            (self.tune[T_BOSS_WARMUP] - self.time).max(0.0)
         } else {
             0.0
         }
@@ -219,7 +217,7 @@ impl Game {
     /// The horde thins out while the boss is alive.
     pub(super) fn boss_spawn_scale(&self) -> f32 {
         if self.mission == M_BOSS && self.boss.id != 0 {
-            SPAWN_SCALE
+            self.tune[T_BOSS_SPAWN_SCALE]
         } else {
             1.0
         }
@@ -231,7 +229,7 @@ impl Game {
             return;
         }
         if self.boss.id == 0 {
-            if self.time >= WARMUP {
+            if self.time >= self.tune[T_BOSS_WARMUP] {
                 self.boss_arrive();
             }
             return;
@@ -251,7 +249,7 @@ impl Game {
         let mut vel = (0.0, 0.0);
         match self.boss.phase {
             Phase::Walk => {
-                let speed = (WALK_SPEED + CATCH_GAIN * (d - NEAR_DIST).max(0.0)).min(CATCH_SPEED);
+                let speed = (self.tune[T_BOSS_WALK_SPEED] + CATCH_GAIN * (d - NEAR_DIST).max(0.0)).min(CATCH_SPEED);
                 vel = (to.0 * speed, to.1 * speed);
                 // Far away, keep running; patterns only start once it is near.
                 if t >= WALK_TIME && d <= PATTERN_RANGE {
@@ -528,6 +526,8 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const WARMUP: f32 = TUNE_DEFAULT[T_BOSS_WARMUP];
 
     /// A new run of the boss mission.
     fn fight(seed: u32) -> Game {
@@ -883,5 +883,47 @@ mod tests {
                 println!("{name} seed {seed}: won {won:5} dead {over:5} at {time:6.1}s, boss left {left:6.0}");
             }
         }
+    }
+
+    #[test]
+    fn tunes_change_the_boss() {
+        let mut game = Game::new(3);
+        game.set_tune(T_BOSS_GOAL, 2000.0);
+        game.set_tune(T_BOSS_WARMUP, 30.0);
+        game.set_tune(T_BOSS_WALK_SPEED, 160.0);
+        game.set_tune(T_BOSS_SPAWN_SCALE, 1.0);
+        game.start(M_BOSS);
+        assert_eq!(game.goal(), 2000.0);
+        assert_eq!(game.boss_wait(), 30.0);
+        assert_eq!(game.boss_spawn_scale(), 1.0);
+        game.time = 29.0;
+        for _ in 0..50 {
+            step_immortal(&mut game);
+        }
+        assert!(game.boss_index().is_none());
+        for _ in 0..30 {
+            step_immortal(&mut game);
+        }
+        let i = game.boss_index().expect("the boss arrived after 30 s");
+        assert_eq!(game.enemies[i].hp, 2000.0);
+        game.update(TICK);
+        assert_eq!(game.state[S_GOAL], 2000.0);
+        assert_eq!(game.boss_wait(), 0.0);
+    }
+
+    #[test]
+    fn no_warm_up_and_no_horde_is_fine() {
+        let mut game = Game::new(3);
+        game.set_tune(T_BOSS_WARMUP, 0.0);
+        game.set_tune(T_BOSS_SPAWN_SCALE, 0.0);
+        game.start(M_BOSS);
+        game.tick();
+        assert!(game.boss_index().is_some(), "the boss is there on the first step");
+        assert_eq!(game.boss_spawn_scale(), 0.0);
+        for _ in 0..400 {
+            step_immortal(&mut game);
+        }
+        assert!(game.enemies.iter().all(|e| e.x.is_finite() && e.y.is_finite()));
+        assert!(!game.over);
     }
 }

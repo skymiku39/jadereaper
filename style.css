@@ -234,6 +234,18 @@ button.mission small { font-family: var(--hand); font-size: 15px; font-weight: 4
 }
 .pips i.on { background: var(--jade); }
 
+/* ------------------------------------------------------------------ setup */
+/* The screen before a mission: its tunes, one stepper each. */
+
+#setup { overflow-y: auto; align-items: safe center; }
+.setup-sheet { width: min(600px, 100%); }
+.setup-sheet .sub { margin-bottom: 0; }
+.tunes .setting { margin-top: 12px; font-size: 19px; text-align: left; }
+.tunes .stepper button { padding: 2px 14px; font-size: 22px; }
+.tune-value { min-width: 4.2em; text-align: center; font-variant-numeric: tabular-nums; }
+/* A value that is not the one the game ships with. */
+.tune-value.changed { color: var(--vermilion); font-weight: 700; }
+
 /* --------------------------------------------------------------- level up */
 
 .levelup-wrap { display: grid; gap: 22px; justify-items: center; width: min(900px, 100%); }

@@ -4,8 +4,8 @@ import { createRenderer } from './renderer.js';
 import { createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { createUI } from './ui.js';
-import { loadSave, writeSave, recordRun, recordMission, clearRecords } from './save.js';
-import { MISSIONS, MISSION_IDS, STATE, STATE_FLOATS, UPGRADES } from './data.js';
+import { loadSave, writeSave, recordRun, recordMission, clearRecords, tuneValue, setTune } from './save.js';
+import { MISSIONS, MISSION_IDS, TUNES, STATE, STATE_FLOATS, UPGRADES } from './data.js';
 import { pickLang, setLang, getLang, nextLang } from './i18n.js';
 
 async function boot() {
@@ -20,6 +20,8 @@ async function boot() {
   let mode = 'title';
   // The mission of the current or last run; "again" and "restart" replay it.
   let mission = MISSIONS[MISSION_IDS.endless];
+  // True while the run has a tune that is not at its default. Such a run is not recorded.
+  let testRun = false;
   let settingsFrom = 'title';
 
   const ui = createUI({ onAction });
@@ -49,9 +51,40 @@ async function boot() {
     ui.show('title');
   }
 
-  /** Start a run of the mission with this id, or of the current mission again. */
-  function startRun(id) {
+  /** The tunes the setup screen of the current mission shows: its own, then the ones every mission has. */
+  const missionTunes = () => [
+    ...TUNES.filter((tune) => tune.mission === mission.name),
+    ...TUNES.filter((tune) => tune.mission === 'any'),
+  ];
+
+  /** Show the setup screen of the mission with this id, or redraw it for the current mission. */
+  function openSetup(id) {
     if (MISSIONS[Number(id)]) mission = MISSIONS[Number(id)];
+    const rows = missionTunes().map((tune) => ({ tune, value: tuneValue(save, tune) }));
+    const goal = rows.find(({ tune }) => tune.name === `${mission.name}_goal`)?.value ?? mission.goal;
+    ui.setup(mission, rows, goal);
+  }
+
+  /** Move a tune one step down (-1) or up (1), staying on the steps counted from its minimum. */
+  function stepTune(id, dir) {
+    const tune = TUNES[id];
+    if (!tune) return;
+    const steps = Math.round((tuneValue(save, tune) - tune.min) / tune.step) + dir;
+    const value = Math.min(tune.max, Math.max(tune.min, tune.min + steps * tune.step));
+    // Whole steps of a decimal such as 0.05 pick up rounding noise; cut it off.
+    setTune(save, tune, Number(value.toFixed(6)));
+    openSetup();
+  }
+
+  /** Start a run of the current mission with the tunes its setup screen shows. */
+  function startRun() {
+    core.jr_tune_reset();
+    testRun = false;
+    for (const tune of missionTunes()) {
+      const value = tuneValue(save, tune);
+      core.jr_tune(tune.id, value);
+      if (value !== tune.def) testRun = true;
+    }
     core.jr_start(seed(), mission.id);
     mode = 'playing';
     ui.showHud(true);
@@ -79,7 +112,17 @@ async function boot() {
     audio.unlock();
     audio.play(action === 'choose' || action === 'start' ? 'confirm' : 'ui');
     switch (action) {
-      case 'start': startRun(value); break;
+      case 'setup': openSetup(value); break;
+      case 'tune': {
+        const [id, dir] = String(value).split(':').map(Number);
+        stepTune(id, dir);
+        break;
+      }
+      case 'tune-reset':
+        for (const tune of missionTunes()) setTune(save, tune, tune.def);
+        openSetup();
+        break;
+      case 'start': startRun(); break;
       case 'resume': setPaused(false); break;
       case 'restart': startRun(); break;
       case 'quit': toTitle(); break;
@@ -121,6 +164,7 @@ async function boot() {
 
   function back() {
     if (ui.screen === 'settings') onAction('back');
+    else if (ui.screen === 'setup') onAction('quit');
     else if (mode === 'paused') setPaused(false);
   }
 
@@ -195,15 +239,15 @@ async function boot() {
       const run = { time: s[STATE.TIME], kills: s[STATE.KILLS], level: s[STATE.LEVEL] };
       if (s[STATE.WON]) {
         mode = 'won';
-        recordMission(save, mission.name, true);
+        if (!testRun) recordMission(save, mission.name, true);
         ui.missionWon(mission, run, save);
       } else if (s[STATE.OVER]) {
         mode = 'over';
         // Only endless runs count towards the best time, kills and level.
         if (mission.id === MISSION_IDS.endless) {
-          ui.gameOver(mission, run, save, recordRun(save, run));
+          ui.gameOver(mission, run, save, testRun ? null : recordRun(save, run));
         } else {
-          recordMission(save, mission.name, false);
+          if (!testRun) recordMission(save, mission.name, false);
           // A mission can be lost without the player dying; the title then says why.
           let reason = null;
           if (s[STATE.ESCAPED] === 1) reason = 'over.escaped';

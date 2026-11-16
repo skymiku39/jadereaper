@@ -13,19 +13,17 @@ use core::f32::consts::TAU;
 
 /// The player wins when he is this close to the exit.
 const EXIT_R: f32 = 48.0;
-/// Enemies in the starting ring, and the band of distances they stand at.
-const RING_COUNT: u32 = 36;
+/// The band of distances the enemies of the starting ring stand at. How many
+/// there are is `T_ESCAPE_RING_COUNT`.
 const RING_NEAR: f32 = 150.0;
 const RING_FAR: f32 = 260.0;
-/// Extra enemies per second that appear ahead of the player, in a cone this
-/// many radians to each side of the direction to the exit. They stand beyond
-/// the normal spawn ring, spread over `AHEAD_DEPTH` units of distance.
-const AHEAD_RATE: f32 = 20.0;
+/// Extra enemies appear ahead of the player, `T_ESCAPE_AHEAD_RATE` per second,
+/// in a cone this many radians to each side of the direction to the exit. They
+/// stand beyond the normal spawn ring, spread over `AHEAD_DEPTH` units of distance.
 const AHEAD_CONE: f32 = 0.8;
 const AHEAD_DEPTH: f32 = 300.0;
-/// Chances of a brute and of a wisp among the enemies of the ring and the
-/// stream ahead; the rest are blots.
-const BRUTE_SHARE: f32 = 0.25;
+/// Chances of a brute (`T_ESCAPE_BRUTE_SHARE`) and of a wisp among the enemies
+/// of the ring and the stream ahead; the rest are blots.
 const WISP_SHARE: f32 = 0.25;
 
 /// What the mission keeps between steps. Zeroed for every other mission.
@@ -68,8 +66,9 @@ impl Game {
         let a = self.rng.range(0.0, TAU);
         self.escape.x = self.player.x + fmath::cos(a) * self.goal();
         self.escape.y = self.player.y + fmath::sin(a) * self.goal();
-        for i in 0..RING_COUNT {
-            let a = (i as f32 + self.rng.f()) * TAU / RING_COUNT as f32;
+        let ring_count = self.tune[T_ESCAPE_RING_COUNT] as u32;
+        for i in 0..ring_count {
+            let a = (i as f32 + self.rng.f()) * TAU / ring_count as f32;
             let r = self.rng.range(RING_NEAR, RING_FAR);
             let kind = self.escape_kind();
             let (x, y) = (self.player.x + fmath::cos(a) * r, self.player.y + fmath::sin(a) * r);
@@ -79,9 +78,10 @@ impl Game {
 
     fn escape_kind(&mut self) -> u8 {
         let roll = self.rng.f();
-        if roll < BRUTE_SHARE {
+        let brute = self.tune[T_ESCAPE_BRUTE_SHARE];
+        if roll < brute {
             K_BRUTE
-        } else if roll < BRUTE_SHARE + WISP_SHARE {
+        } else if roll < brute + WISP_SHARE {
             K_WISP
         } else {
             K_BLOT
@@ -90,7 +90,7 @@ impl Game {
 
     /// The stream of enemies ahead of the player, on top of the normal spawning.
     pub(crate) fn escape_spawn(&mut self, dt: f32) {
-        self.escape.acc += AHEAD_RATE * dt;
+        self.escape.acc += self.tune[T_ESCAPE_AHEAD_RATE] * dt;
         while self.escape.acc >= 1.0 {
             self.escape.acc -= 1.0;
             let (dx, dy) = (self.escape.x - self.player.x, self.escape.y - self.player.y);
@@ -127,6 +127,9 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const RING_COUNT: u32 = TUNE_DEFAULT[T_ESCAPE_RING_COUNT] as u32;
+    const AHEAD_RATE: f32 = TUNE_DEFAULT[T_ESCAPE_AHEAD_RATE];
 
     fn start(seed: u32) -> Game {
         let mut game = Game::new(seed);
@@ -328,5 +331,48 @@ mod tests {
         game.player.x = game.escape.x - 5000.0;
         game.update(crate::game::TICK);
         assert_eq!(game.inst.iter().filter(|i| i.part == P_RING).count(), 0);
+    }
+
+    #[test]
+    fn tunes_change_the_ring_and_the_stream() {
+        let mut game = Game::new(4);
+        game.set_tune(T_ESCAPE_GOAL, 2000.0);
+        game.set_tune(T_ESCAPE_RING_COUNT, 120.0);
+        game.set_tune(T_ESCAPE_BRUTE_SHARE, 0.5);
+        game.start(M_ESCAPE);
+        assert_eq!(game.goal(), 2000.0);
+        assert!((game.escape.dist(0.0, 0.0) - 2000.0).abs() < 1.0);
+        assert_eq!(game.enemies.len(), 120);
+        let brutes = game.enemies.iter().filter(|e| e.kind == K_BRUTE).count();
+        assert!(brutes > 30, "{brutes} brutes of 120 at a 0.5 share");
+
+        let mut game = Game::new(4);
+        game.set_tune(T_ESCAPE_RING_COUNT, 0.0);
+        game.set_tune(T_ESCAPE_AHEAD_RATE, 80.0);
+        game.start(M_ESCAPE);
+        assert!(game.enemies.is_empty());
+        for _ in 0..60 {
+            game.escape_spawn(crate::game::TICK);
+        }
+        assert!(game.enemies.len() >= 79, "{} ahead", game.enemies.len());
+    }
+
+    #[test]
+    fn no_ring_and_no_stream_is_a_plain_walk() {
+        let mut game = Game::new(4);
+        game.set_tune(T_ESCAPE_RING_COUNT, 0.0);
+        game.set_tune(T_ESCAPE_AHEAD_RATE, 0.0);
+        game.set_tune(T_ESCAPE_BRUTE_SHARE, 0.0);
+        game.set_tune(T_ESCAPE_GOAL, 2000.0);
+        game.start(M_ESCAPE);
+        for _ in 0..300 {
+            game.player.hp = game.player.max_hp;
+            game.tick();
+            if game.choosing {
+                game.choose(0);
+            }
+        }
+        assert!(game.progress().is_finite() && !game.over);
+        assert_eq!(game.escape.hash_words()[2], 0.0f32.to_bits());
     }
 }

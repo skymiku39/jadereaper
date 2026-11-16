@@ -71,6 +71,23 @@
     </div>
   </section>
 
+  <section class="screen" id="setup" hidden>
+    <div class="sheet setup-sheet">
+      <h2 id="setupTitle"></h2>
+      <p class="sub" id="setupDesc"></p>
+      <div class="buttons">
+        <button data-action="start" data-i18n="setup.start">Start</button>
+      </div>
+      <!-- One stepper per tune of the mission, built by ui.js from the generated tune list. -->
+      <div class="tunes" id="tunes"></div>
+      <p class="hint" data-i18n="setup.note">A run with changed numbers is a test run and is not recorded.</p>
+      <div class="buttons">
+        <button data-action="tune-reset" data-i18n="setup.reset">Back to defaults</button>
+        <button data-action="quit" data-i18n="settings.back">Back</button>
+      </div>
+    </div>
+  </section>
+
   <section class="screen" id="settings" hidden>
     <div class="sheet">
       <h2 data-i18n="settings.title">Settings</h2>

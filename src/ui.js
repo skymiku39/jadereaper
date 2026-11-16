@@ -4,7 +4,7 @@ import { formatTime, missionRecord } from './save.js';
 import { t, getLang, setText } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
-const SCREENS = ['title', 'settings', 'levelup', 'pause', 'over', 'won', 'error'];
+const SCREENS = ['title', 'setup', 'settings', 'levelup', 'pause', 'over', 'won', 'error'];
 
 /** The values a mission's text can mention, such as its time limit. */
 const missionVars = (mission) => ({ time: formatTime(mission.goal), goal: mission.goal });
@@ -245,7 +245,7 @@ export function createUI({ onAction }) {
     $('missions').replaceChildren(...order.map((mission) => {
       const btn = document.createElement('button');
       btn.className = 'mission';
-      btn.dataset.action = 'start';
+      btn.dataset.action = 'setup';
       btn.dataset.value = String(mission.id);
       const name = document.createElement('span');
       name.textContent = t(`mission.${mission.name}.name`);
@@ -260,6 +260,51 @@ export function createUI({ onAction }) {
     if (current === 'title') {
       const again = [...$('missions').children].find((b) => b.dataset.value === focused);
       (again || $('missions').firstElementChild).focus({ preventScroll: true });
+    }
+  }
+
+  /** A tune's value as text: as many decimals as its step has. */
+  function tuneText(tune, value) {
+    const decimals = (String(tune.step).split('.')[1] || '').length;
+    return value.toFixed(decimals);
+  }
+
+  /**
+   * The screen before a run of `mission`: its description and one stepper per tune.
+   * `rows` is a list of { tune, value }; `goal` is the mission's goal with the tunes applied.
+   */
+  function setup(mission, rows, goal) {
+    $('setupTitle').textContent = t(`mission.${mission.name}.name`);
+    $('setupDesc').textContent = t(`mission.${mission.name}.desc`, missionVars({ ...mission, goal }));
+    const focused = document.activeElement?.dataset?.value;
+    $('tunes').replaceChildren(...rows.map(({ tune, value }) => {
+      const row = document.createElement('div');
+      row.className = 'setting';
+      const label = document.createElement('span');
+      label.textContent = t(`tune.${tune.name}`);
+      const stepper = document.createElement('div');
+      stepper.className = 'stepper';
+      const shown = document.createElement('b');
+      shown.className = value === tune.def ? 'tune-value' : 'tune-value changed';
+      shown.textContent = tuneText(tune, value);
+      const step = (dir, sign, key) => {
+        const btn = document.createElement('button');
+        btn.dataset.action = 'tune';
+        btn.dataset.value = `${tune.id}:${dir}`;
+        btn.textContent = sign;
+        btn.setAttribute('aria-label', t(key, { name: label.textContent }));
+        return btn;
+      };
+      stepper.append(step(-1, '−', 'setup.lower'), shown, step(1, '+', 'setup.raise'));
+      row.append(label, stepper);
+      return row;
+    }));
+    if (current !== 'setup') {
+      show('setup');
+    } else if (focused) {
+      // Rebuilding drops focus; put it back on the stepper button that was pressed.
+      const again = [...$('tunes').querySelectorAll('button')].find((b) => b.dataset.value === focused);
+      if (again) again.focus({ preventScroll: true });
     }
   }
 
@@ -291,7 +336,7 @@ export function createUI({ onAction }) {
   }
 
   return {
-    show, navigate, confirm, hud, showHud, levelUp, gameOver, missionWon, records, settings, error,
+    show, navigate, confirm, hud, showHud, levelUp, gameOver, missionWon, records, setup, settings, error,
     get screen() { return current; },
     get locked() { return performance.now() < lockedUntil; },
   };

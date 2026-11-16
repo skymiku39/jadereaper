@@ -16,19 +16,13 @@ use super::*;
 /// Id of the target in `Game::enemies`. Normal enemies count up from 1.
 pub const PURSUIT_ID: u32 = u32::MAX;
 
-/// The route is this many straight legs of `LEG_LEN`; the last waypoint is the exit.
+/// The route is this many straight legs of `T_PURSUIT_LEG_LEN`; the last waypoint is the exit.
 const LEGS: usize = 6;
-const LEG_LEN: f32 = 3600.0;
-/// How far from the player the target starts. Just past the edge of the screen.
-const START_DIST: f32 = 800.0;
 /// Each leg heads within this many radians of the direction the target first runs.
 const WANDER: f32 = 0.9;
-/// Target speed while running. The player walks at 190.
-const SPEED: f32 = 170.0;
 /// The target runs for this long, then stops for `PAUSE_TIME` and calls a pack.
 const RUN_TIME: f32 = 8.0;
 const PAUSE_TIME: f32 = 3.0;
-const PACK: usize = 8;
 /// A waypoint counts as reached this close to it.
 const REACH: f32 = 40.0;
 /// Margin of the off-screen marker from the screen edge.
@@ -60,12 +54,15 @@ impl Game {
     pub(super) fn pursuit_start(&mut self) {
         let a0 = self.rng.range(0.0, TAU);
         let (px, py) = (self.player.x, self.player.y);
-        let start = (px + fmath::cos(a0) * START_DIST, py + fmath::sin(a0) * START_DIST);
+        // The target starts `T_PURSUIT_START_DIST` away, just past the edge of the screen at the default.
+        let start_dist = self.tune[T_PURSUIT_START_DIST];
+        let leg_len = self.tune[T_PURSUIT_LEG_LEN];
+        let start = (px + fmath::cos(a0) * start_dist, py + fmath::sin(a0) * start_dist);
         let mut route = [(0.0, 0.0); LEGS];
         let mut at = start;
         for w in route.iter_mut() {
             let h = a0 + self.rng.range(-WANDER, WANDER);
-            at = (at.0 + fmath::cos(h) * LEG_LEN, at.1 + fmath::sin(h) * LEG_LEN);
+            at = (at.0 + fmath::cos(h) * leg_len, at.1 + fmath::sin(h) * leg_len);
             *w = at;
         }
         let seed = self.rng.f();
@@ -125,6 +122,9 @@ impl Game {
         }
 
         let mut reached_exit = false;
+        let leg_len_set = self.tune[T_PURSUIT_LEG_LEN];
+        // The player walks at 190.
+        let speed = self.tune[T_PURSUIT_SPEED];
         {
             let p = &mut self.pursuit;
             let e = &mut self.enemies[i];
@@ -139,8 +139,8 @@ impl Game {
             // How far along the route it is, never going back.
             let (fx, fy) = (to.0 - from.0, to.1 - from.1);
             let leg_len = (fx * fx + fy * fy).sqrt().max(0.001);
-            let done = p.leg as f32 * LEG_LEN + (leg_len - d).clamp(0.0, leg_len);
-            p.frac = p.frac.max((done / (LEGS as f32 * LEG_LEN)).clamp(0.0, 1.0));
+            let done = p.leg as f32 * leg_len_set + (leg_len - d).clamp(0.0, leg_len);
+            p.frac = p.frac.max((done / (LEGS as f32 * leg_len_set)).clamp(0.0, 1.0));
             if d < REACH {
                 if p.leg + 1 == LEGS {
                     reached_exit = true;
@@ -149,8 +149,8 @@ impl Game {
                 }
             } else if !p.pausing {
                 p.dir = (dx / d, dy / d);
-                e.x += p.dir.0 * SPEED * dt;
-                e.y += p.dir.1 * SPEED * dt;
+                e.x += p.dir.0 * speed * dt;
+                e.y += p.dir.1 * speed * dt;
                 if p.dir.0.abs() > 0.1 {
                     e.face = p.dir.0.signum();
                 }
@@ -174,7 +174,7 @@ impl Game {
         let (x, y) = (self.enemies[i].x, self.enemies[i].y);
         let (dx, dy) = self.pursuit.dir;
         let behind = fmath::atan2(-dy, -dx);
-        for _ in 0..PACK {
+        for _ in 0..self.tune[T_PURSUIT_PACK] as usize {
             let a = behind + self.rng.range(-1.2, 1.2);
             let r = self.rng.range(110.0, 200.0);
             let roll = self.rng.f();
@@ -275,6 +275,10 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const LEG_LEN: f32 = TUNE_DEFAULT[T_PURSUIT_LEG_LEN];
+    const START_DIST: f32 = TUNE_DEFAULT[T_PURSUIT_START_DIST];
+    const PACK: usize = TUNE_DEFAULT[T_PURSUIT_PACK] as usize;
 
     /// Play on with the player kept healthy until the run ends or `seconds`
     /// pass. `bot` sets the movement input before each step.
@@ -523,5 +527,44 @@ mod tests {
             assert!(game.pursuit.escaped, "seed {seed} did not see the target escape");
             assert_eq!(game.progress(), 0.0);
         }
+    }
+
+    #[test]
+    fn tunes_change_the_route_and_the_target() {
+        let mut game = Game::new(4);
+        game.set_tune(T_PURSUIT_GOAL, 500.0);
+        game.set_tune(T_PURSUIT_LEG_LEN, 1200.0);
+        game.set_tune(T_PURSUIT_START_DIST, 300.0);
+        game.set_tune(T_PURSUIT_PACK, 24.0);
+        game.start(M_PURSUIT);
+        let t = target(&game).unwrap();
+        assert_eq!(t.hp, 500.0);
+        assert_eq!(game.goal(), 500.0);
+        assert!((t.x.hypot(t.y) - 300.0).abs() < 1.0);
+        let mut at = game.pursuit.start;
+        for w in game.pursuit.route {
+            assert!(((w.0 - at.0).hypot(w.1 - at.1) - 1200.0).abs() < 5.0);
+            at = w;
+        }
+        let before = game.enemies.len();
+        game.pursuit.clock = RUN_TIME;
+        game.tick();
+        assert!(game.enemies.len() >= before + 24);
+    }
+
+    #[test]
+    fn a_target_without_a_pack_still_runs() {
+        let mut game = Game::new(4);
+        game.set_tune(T_PURSUIT_PACK, 0.0);
+        game.set_tune(T_PURSUIT_SPEED, 220.0);
+        game.set_tune(T_PURSUIT_LEG_LEN, 1200.0);
+        game.start(M_PURSUIT);
+        let before = game.enemies.len();
+        game.pursuit.clock = RUN_TIME;
+        game.tick();
+        assert!(game.pursuit.pausing);
+        assert_eq!(game.enemies.len(), before);
+        play(&mut game, 120, |g| g.input = (0.0, 0.0));
+        assert!(game.pursuit.frac > 0.0);
     }
 }
