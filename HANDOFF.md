@@ -10,7 +10,7 @@ Environment: `gh` is not installed inside WSL, so use the Windows one with `--re
 
 ### feat/missions-all
 
-All nine remaining mission types from `docs/design.md` 4.2.1, combined. Cut from `main` at 9bde2d0. Not pushed, no PR. The main checkout is on this branch.
+All nine remaining mission types from `docs/design.md` 4.2.1, combined. Cut from `main` at 9bde2d0. Pushed and open as PR 6 (the user said "推送並開 PR"); merging it needs the user's word. The main checkout is on this branch.
 
 How it came about (2026-11-16): the user said to build every mission in parallel ("每一個任務都要做，但是要記得幫我分工並且同時做", then "五種也一起做"), so nine subagents each built one mission in its own worktree and branch, and on "提交並合併" each was committed there and all were combined here. The combination is one commit rather than nine merges, because the branches collided in the same lines and the merges in between would not have built.
 
@@ -47,7 +47,7 @@ Done: the rest of CI (roadmap step 5), merged as PR 2, and the fixed time step, 
 - **P-16** Delete the old local branches `docs/game-design`, `feat/content-generator`, `test/weapon-behaviour`, `integrate/own-version` and `docs/own-pages-url`, the worktrees under `.worktrees/`, and the remote branches `docs/game-design`, `test/weapon-behaviour` and `docs/own-pages-url` on `skymiku39/jadereaper`. Their code is on `main` (cherry-picked, so the first three do not show as merged); only their own handoff commits would be lost. Why: deleting branches needs approval. Blocks: nothing.
 - **P-21** The user's call on the survive mission: it can be won by only running away. In a native simulation of 40 seeds, a bot that moves away from nearby enemies and always takes the first card won 40 of 40 at a mean level of 1.4; a bot walking in circles won 0 of 40 and lasted 102 s on average. The arena has no edge and enemies are slower than the player. It needs pressure that running cannot escape (a bounded arena, spawns that surround, faster chasers); open in `docs/design.md` 4.2.1. Blocks: nothing, but it shapes the next mission prototypes.
 - **P-22** The user has not yet said whether the game looks right at the fixed step (PR 3). Blocks: nothing.
-- **P-31** The user's go-ahead to push `feat/missions-all` and open its PR. Why: pushing needs the user's word. Blocks: CI on the nine missions and the Pages deploy that would let the user play them from a link.
+- **P-31** The user's go-ahead to merge PR 6 (`feat/missions-all`). Why: merging needs the user's word. Blocks: the Pages deploy that would let the user play the nine missions from a link.
 - **P-32** Delete the nine branches `feat/mission-<name>` and their worktrees once `feat/missions-all` is merged. They were combined by hand, so git will not report them as merged and `git branch -d` will refuse. Why: deleting unmerged-looking branches needs approval. Blocks: nothing.
 - **P-29** What makes the encirclement in `escape` real, since enemies neither block nor outrun the player: guards standing at the exit, a slowdown inside a crowd, or a higher enemy cap. Same root as P-21. Blocks: `escape` being a mission at all.
 - **P-30** The user's call on the prototype numbers of the nine missions, above all `pursuit`'s three-minute length and whether `retrieval` may be won without fighting. Blocks: nothing.
