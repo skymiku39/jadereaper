@@ -103,7 +103,7 @@ mod tests {
             game.update(1.0 / 60.0);
             assert!(game.inst.len() <= MAX_INST);
             if game.choosing {
-                game.choose((rng.next() % 3) as usize);
+                game.choose((rng.next_u32() % 3) as usize);
                 picks += 1;
             }
             // Keep the run going so late-game spawning is exercised too.

@@ -731,7 +731,7 @@ impl Game {
     fn drop_gem(&mut self, x: f32, y: f32, value: f32, heart: bool) {
         if !heart && self.gems.len() >= MAX_GEMS {
             // Too many on the ground: fold the value into an existing gem.
-            let i = (self.rng.next() as usize) % self.gems.len();
+            let i = (self.rng.next_u32() as usize) % self.gems.len();
             self.gems[i].value += value;
             return;
         }
@@ -818,7 +818,7 @@ impl Game {
         }
         for c in 0..3 {
             if c < n {
-                let j = c + (self.rng.next() as usize) % (n - c);
+                let j = c + (self.rng.next_u32() as usize) % (n - c);
                 pool.swap(c, j);
                 self.choices[c] = pool[c] as i32;
             } else {
@@ -951,7 +951,7 @@ impl Game {
                 let x = (cx as f32 + fx) * G;
                 let y = (cy as f32 + fy) * G;
                 let seed = (h & 255) as f32 / 255.0;
-                if (h >> 24) % 4 == 0 {
+                if (h >> 24).is_multiple_of(4) {
                     self.put(x, y, 16.0 + seed * 12.0, 8.0 + seed * 5.0, 0.0, P_STONE, 0.0, seed, [INK[0], INK[1], INK[2], 0.16]);
                 } else {
                     let flip = if h & 1 == 0 { 1.0 } else { -1.0 };
