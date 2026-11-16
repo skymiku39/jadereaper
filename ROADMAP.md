@@ -15,7 +15,6 @@ Known weaknesses, which the steps below address:
 - **Puppets are posed in code.** `draw_player` and `draw_enemy` hardcode part offsets, tilts and sizes. A custom image can replace a part's picture but not how a character is assembled or how it moves.
 - **The time step is variable.** `jr_update(dt)` advances by the real frame time, so the same seed and inputs do not replay the same run. This blocks replays and makes balance testing noisy.
 - **Weapon hits are brute force.** The spatial grid is only used for enemy separation; every weapon loops over every enemy. Fine at the 500-enemy cap, not beyond.
-- **Little is automated.** CI deploys the game, checks the fonts and smoke-tests the page, but it does not run the core tests, and the checked-in `wasm/jadereaper_core.wasm` can still drift from the Rust source.
 - **A run has no shape.** One endless arena, no win condition, the elite is just a big brute with no attacks, and nothing carries over between runs.
 - **Balance is untested by people.** Numbers were tuned only against a bot that walks in circles, which survived about 2 minutes 20 seconds.
 

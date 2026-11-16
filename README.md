@@ -97,9 +97,7 @@ When the core sets the "choosing" flag the host shows the upgrade cards and answ
 
 ## Build the core
 
-```bash
-rustup target add wasm32-unknown-unknown
-```
+`rust-toolchain.toml` pins the Rust version and lists the wasm target, rustfmt and clippy; rustup installs them on the first `cargo` command.
 
 ```bash
 ./build.sh
