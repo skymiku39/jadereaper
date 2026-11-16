@@ -4,8 +4,8 @@ import { createRenderer } from './renderer.js';
 import { createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { createUI } from './ui.js';
-import { loadSave, writeSave, recordRun } from './save.js';
-import { EVENT, STATE, STATE_FLOATS, UPGRADES } from './data.js';
+import { loadSave, writeSave, recordRun, recordMission, clearRecords } from './save.js';
+import { MISSIONS, MISSION_IDS, STATE, STATE_FLOATS, UPGRADES } from './data.js';
 import { pickLang, setLang, getLang, nextLang } from './i18n.js';
 
 async function boot() {
@@ -16,8 +16,10 @@ async function boot() {
   audio.setVolume(save.volume);
   audio.setMuted(save.muted);
 
-  // 'title' | 'playing' | 'levelup' | 'paused' | 'over'
+  // 'title' | 'playing' | 'levelup' | 'paused' | 'over' | 'won'
   let mode = 'title';
+  // The mission of the current or last run; "again" and "restart" replay it.
+  let mission = MISSIONS[MISSION_IDS.endless];
   let settingsFrom = 'title';
 
   const ui = createUI({ onAction });
@@ -47,8 +49,10 @@ async function boot() {
     ui.show('title');
   }
 
-  function startRun() {
-    core.jr_start(seed());
+  /** Start a run of the mission with this id, or of the current mission again. */
+  function startRun(id) {
+    if (MISSIONS[Number(id)]) mission = MISSIONS[Number(id)];
+    core.jr_start(seed(), mission.id);
     mode = 'playing';
     ui.showHud(true);
     ui.show(null);
@@ -75,7 +79,7 @@ async function boot() {
     audio.unlock();
     audio.play(action === 'choose' || action === 'start' ? 'confirm' : 'ui');
     switch (action) {
-      case 'start': startRun(); break;
+      case 'start': startRun(value); break;
       case 'resume': setPaused(false); break;
       case 'restart': startRun(); break;
       case 'quit': toTitle(); break;
@@ -91,8 +95,7 @@ async function boot() {
       case 'vol-up': audio.setVolume(audio.volume + 0.1); saveSettings(); audio.play('confirm'); break;
       case 'vol-down': audio.setVolume(audio.volume - 0.1); saveSettings(); audio.play('confirm'); break;
       case 'clear-save':
-        Object.assign(save, { bestTime: 0, bestKills: 0, bestLevel: 0, runs: 0, totalKills: 0 });
-        writeSave(save);
+        clearRecords(save);
         ui.records(save);
         break;
       case 'choose':
@@ -178,11 +181,22 @@ async function boot() {
       ui.hud({
         hp: s[STATE.HP], maxHp: s[STATE.MAX_HP], xp: s[STATE.XP], xpNext: s[STATE.XP_NEXT],
         level: s[STATE.LEVEL], time: s[STATE.TIME], kills: s[STATE.KILLS], upgrades: upgradeLevels(s),
+        mission, goal: s[STATE.GOAL], progress: s[STATE.PROGRESS],
       });
-      if (s[STATE.OVER]) {
+      const run = { time: s[STATE.TIME], kills: s[STATE.KILLS], level: s[STATE.LEVEL] };
+      if (s[STATE.WON]) {
+        mode = 'won';
+        recordMission(save, mission.name, true);
+        ui.missionWon(mission, run, save);
+      } else if (s[STATE.OVER]) {
         mode = 'over';
-        const run = { time: s[STATE.TIME], kills: s[STATE.KILLS], level: s[STATE.LEVEL] };
-        ui.gameOver(run, save, recordRun(save, run));
+        // Only endless runs count towards the best time, kills and level.
+        if (mission.id === MISSION_IDS.endless) {
+          ui.gameOver(mission, run, save, recordRun(save, run));
+        } else {
+          recordMission(save, mission.name, false);
+          ui.gameOver(mission, run, save, null);
+        }
       } else if (s[STATE.CHOOSING]) {
         mode = 'levelup';
         ui.levelUp(Array.from(s.subarray(STATE.CHOICE0, STATE.CHOICE0 + 3)), upgradeLevels(s));

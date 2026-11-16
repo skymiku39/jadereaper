@@ -9,6 +9,8 @@ const DEFAULTS = {
   bestLevel: 0,
   runs: 0,
   totalKills: 0,
+  // Per mission name: { tries, wins }. The numbers above are for endless only.
+  missions: {},
   volume: 0.6,
   muted: false,
   lang: null, // null: use DEFAULT_LANG from i18n.js
@@ -18,10 +20,33 @@ export function loadSave() {
   try {
     const raw = localStorage.getItem(KEY);
     const data = raw ? JSON.parse(raw) : {};
-    return { ...DEFAULTS, ...(data && typeof data === 'object' ? data : {}) };
+    const save = { ...DEFAULTS, ...(data && typeof data === 'object' ? data : {}) };
+    // Older saves have no mission records; never share the default object.
+    const ok = save.missions && typeof save.missions === 'object' && !Array.isArray(save.missions);
+    save.missions = ok ? { ...save.missions } : {};
+    return save;
   } catch {
-    return { ...DEFAULTS };
+    return { ...DEFAULTS, missions: {} };
   }
+}
+
+/** How often a mission was tried and won. */
+export function missionRecord(save, name) {
+  const r = save.missions[name];
+  return { tries: Number(r?.tries) || 0, wins: Number(r?.wins) || 0 };
+}
+
+/** Fold a finished mission run into the save. */
+export function recordMission(save, name, won) {
+  const r = missionRecord(save, name);
+  save.missions[name] = { tries: r.tries + 1, wins: r.wins + (won ? 1 : 0) };
+  writeSave(save);
+}
+
+/** Forget every record but keep the settings. */
+export function clearRecords(save) {
+  Object.assign(save, { bestTime: 0, bestKills: 0, bestLevel: 0, runs: 0, totalKills: 0, missions: {} });
+  writeSave(save);
 }
 
 export function writeSave(save) {
