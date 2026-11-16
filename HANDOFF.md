@@ -11,12 +11,11 @@ Environment: `gh` is not installed inside WSL, so use the Windows one with `--re
 ### feat/fixed-step
 
 - Task: the first slice of item 1 of `Ranked work`: a fixed time step and a deterministic core. Replays and the balance tool are later slices.
-- PR: none. Not pushed.
+- PR: https://github.com/skymiku39/jadereaper/pull/3, based on `main`. The user approved pushing it and a rebase merge once CI passes, on 2026-11-16 (P-19).
 - Code checkpoint: see `git log`; the branch is cut from `main` at ef354f1 (PR 1 and PR 2 merged, all four workflows green there).
 - Changed: `Game::update(dt)` now collects real time and advances in whole steps of `TICK` (1/60 s) through the new public `Game::tick()`, then `Game::present()` rebuilds the instances and HUD state. A frame time within 12% of one step counts as exactly one. New `Game::hash()`, `scripted_run()` and the exports `jr_ticks`, `jr_state_hash` and `jr_scripted_run`. New `core/src/fmath.rs` replaces every standard `sin`, `cos`, `exp`, `powf`, `powi` and `atan2` in the core, because the native and wasm maths libraries disagreed and the same run diverged. New `tools/determinism.mjs` (`npm run determinism`) and `core/examples/scripted_run.rs` compare a four-minute scripted run on both targets for four seeds; the `Core` workflow runs it.
 - Verification on 2026-11-16 (Rust 1.100.0, Node 24.22.3, Linux x86-64 under WSL): format, clippy (native and wasm), `cargo test` (49 unit tests, 16 content tests), `./build.sh` (wasm is now 63,017 bytes), `npm run determinism` (all four seeds match) and `npm run smoke` passed. A ten-second headless play measured 60.0 steps per second, the run clock matched real time, and there were no console errors. Not verified: how it looks. Headless screenshots show the HUD but a blank canvas, so nobody has watched the game move since this change; the user should play it once. Also not tried: displays faster than 60 Hz, where motion advances on some frames only.
-- Next action: P-19, then the replay slice.
-- Pending: **P-19** push this branch to `origin`, open a PR and merge it once CI passes. Why: pushing and merging need the user's go-ahead.
+- Next action: merge PR 3 once CI passes, then the replay slice. The user has still to play the game once and say whether it looks right.
 
 ## Ranked work
 
