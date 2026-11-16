@@ -223,6 +223,14 @@ pub struct Event {
 }
 
 #[derive(Clone, Debug)]
+pub struct Mission {
+    pub id: u32,
+    pub name: String,
+    /// What the mission asks for, in its own unit (seconds for `survive`). 0 for none.
+    pub goal: u32,
+}
+
+#[derive(Clone, Debug)]
 pub struct StateField {
     pub name: String,
     pub index: u32,
@@ -238,6 +246,7 @@ pub struct Content {
     pub parts: Vec<Part>,
     pub upgrades: Vec<Upgrade>,
     pub events: Vec<Event>,
+    pub missions: Vec<Mission>,
     pub state: Vec<StateField>,
 }
 
@@ -326,7 +335,7 @@ impl<'a> Fields<'a> {
 }
 
 /// Table names the content file may use, also valid as a `len` reference.
-const TABLES: [&str; 4] = ["part", "upgrade", "event", "state"];
+const TABLES: [&str; 5] = ["part", "upgrade", "event", "mission", "state"];
 
 /// Parse and check the content file. Returns every problem found.
 pub fn load(src: &str) -> Result<Content, Vec<String>> {
@@ -367,6 +376,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     let mut parts = Vec::new();
     let mut upgrades = Vec::new();
     let mut events = Vec::new();
+    let mut missions = Vec::new();
     // (name, index, len given as written, line)
     let mut raw_state: Vec<(String, u32, Option<Value>, usize)> = Vec::new();
 
@@ -401,6 +411,11 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                     events.push((Event { id, name }, t.line));
                 }
             }
+            "mission" => {
+                if let (Some(id), Some(name), Some(goal)) = (f.uint("id"), f.name(), f.uint("goal")) {
+                    missions.push((Mission { id, name, goal }, t.line));
+                }
+            }
             "state" => {
                 let len = f.get("len").map(|e| e.value.clone());
                 if let (Some(name), Some(index)) = (f.name(), f.uint("index")) {
@@ -431,6 +446,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     unique(&mut errs, "part", parts.iter().map(|(p, l)| (p.id, p.name.as_str(), *l)));
     unique(&mut errs, "upgrade", upgrades.iter().map(|(u, l)| (u.id, u.name.as_str(), *l)));
     unique(&mut errs, "event", events.iter().map(|(e, l)| (e.id, e.name.as_str(), *l)));
+    unique(&mut errs, "mission", missions.iter().map(|(m, l)| (m.id, m.name.as_str(), *l)));
     let mut state_names: BTreeMap<&str, usize> = BTreeMap::new();
     for (name, _, _, line) in &raw_state {
         if let Some(first) = state_names.insert(name, *line) {
@@ -446,11 +462,23 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
         errs.push(format!("upgrade ids must run 0 to {} without gaps", upgrades.len().saturating_sub(1)));
     }
 
+    // Mission ids index tables too.
+    let mut mission_ids: Vec<u32> = missions.iter().map(|(m, _)| m.id).collect();
+    mission_ids.sort_unstable();
+    mission_ids.dedup();
+    if mission_ids.iter().enumerate().any(|(i, id)| i as u32 != *id) {
+        errs.push(format!("mission ids must run 0 to {} without gaps", missions.len().saturating_sub(1)));
+    }
+    if missions.is_empty() {
+        errs.push("at least one [[mission]] is needed".to_string());
+    }
+
     // State fields: resolve `len`, then check bounds and overlap.
     let count = |table: &str| match table {
         "part" => parts.len(),
         "upgrade" => upgrades.len(),
         "event" => events.len(),
+        "mission" => missions.len(),
         _ => raw_state.len(),
     };
     let mut state = Vec::new();
@@ -499,12 +527,15 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     parts.sort_by_key(|p| p.id);
     upgrades.sort_by_key(|u| u.id);
     events.sort_by_key(|e| e.id);
+    let mut missions: Vec<Mission> = missions.into_iter().map(|(m, _)| m).collect();
+    missions.sort_by_key(|m| m.id);
     Ok(Content {
         ink: ink.unwrap(),
         state_floats: state_floats.unwrap(),
         parts,
         upgrades,
         events,
+        missions,
         state: state.into_iter().map(|(s, _)| s).collect(),
     })
 }
@@ -557,6 +588,14 @@ pub fn render_rust(c: &Content) -> String {
         writeln!(o, "pub const EV_{}: f32 = {}.0;", upper(&e.name), e.id).unwrap();
     }
 
+    o.push_str("\n// Mission ids, and what each one asks for (seconds for `survive`).\n");
+    for m in &c.missions {
+        writeln!(o, "pub const M_{}: usize = {};", upper(&m.name), m.id).unwrap();
+    }
+    writeln!(o, "pub const N_MISSIONS: usize = {};", c.missions.len()).unwrap();
+    let goals: Vec<String> = c.missions.iter().map(|m| format!("{}.0", m.goal)).collect();
+    writeln!(o, "pub const MISSION_GOAL: [f32; N_MISSIONS] = [{}];", goals.join(", ")).unwrap();
+
     o.push_str("\n// HUD state buffer: size and the index of each field.\n");
     writeln!(o, "pub const STATE_FLOATS: usize = {};", c.state_floats).unwrap();
     for s in &c.state {
@@ -598,6 +637,21 @@ pub fn render_js(c: &Content) -> String {
     o.push_str("export const EVENT = {\n");
     for e in &c.events {
         writeln!(o, "  {}: {},", upper(&e.name), e.id).unwrap();
+    }
+    o.push_str("};\n\n");
+
+    o.push_str("/** Missions, indexed by id. `goal` is what the mission asks for (seconds for survive).\n");
+    o.push_str(" * Names and descriptions are in src/i18n.js as mission.<name>.name and .desc. */\n");
+    o.push_str("export const MISSIONS = [\n");
+    for m in &c.missions {
+        writeln!(o, "  {{ id: {}, name: {}, goal: {} }},", m.id, js_str(&m.name), m.goal).unwrap();
+    }
+    o.push_str("];\n\n");
+
+    o.push_str("/** Mission ids by name. */\n");
+    o.push_str("export const MISSION_IDS = {\n");
+    for m in &c.missions {
+        writeln!(o, "  {}: {},", m.name, m.id).unwrap();
     }
     o.push_str("};\n\n");
 

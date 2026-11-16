@@ -47,6 +47,13 @@ pub const EV_PULSE: f32 = 8.0;
 pub const EV_DEATH: f32 = 9.0;
 pub const EV_HEAL: f32 = 10.0;
 pub const EV_ELITE: f32 = 11.0;
+pub const EV_WIN: f32 = 12.0;
+
+// Mission ids, and what each one asks for (seconds for `survive`).
+pub const M_ENDLESS: usize = 0;
+pub const M_SURVIVE: usize = 1;
+pub const N_MISSIONS: usize = 2;
+pub const MISSION_GOAL: [f32; N_MISSIONS] = [0.0, 300.0];
 
 // HUD state buffer: size and the index of each field.
 pub const STATE_FLOATS: usize = 32;
@@ -65,5 +72,9 @@ pub const S_CAM_Y: usize = 13;
 pub const S_ENEMIES: usize = 14;
 pub const S_RUNNING: usize = 15;
 pub const S_UPGRADE0: usize = 16;
+pub const S_MISSION: usize = 26;
+pub const S_GOAL: usize = 27;
+pub const S_PROGRESS: usize = 28;
+pub const S_WON: usize = 29;
 
 pub const INK: [f32; 3] = [0.17, 0.15, 0.13];

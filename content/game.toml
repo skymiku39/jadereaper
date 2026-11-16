@@ -208,6 +208,28 @@ name = "heal"
 id = 11
 name = "elite"
 
+[[event]]
+id = 12
+name = "win"
+
+# ------------------------------------------------------------- missions
+# What a run is for. Ids index the mission tables, so they run 0, 1, 2...
+# without gaps. `goal` is what the mission asks for, in its own unit; 0 means
+# the mission has no goal and only ends on death. The rule that checks the
+# goal is `Game::mission_won` in core/src/game.rs. Names and descriptions are
+# `mission.<name>.name` and `.desc` in src/i18n.js.
+
+[[mission]]
+id = 0
+name = "endless"
+goal = 0
+
+# Stay alive for `goal` seconds.
+[[mission]]
+id = 1
+name = "survive"
+goal = 300
+
 # ---------------------------------------------------------------- state
 # Fields of the HUD state buffer written by Game::write_state. `index` is the
 # first float. A field with `len` is a run of floats; its constant gets a 0
@@ -277,3 +299,22 @@ index = 15
 name = "upgrade"
 index = 16
 len = "upgrade"
+
+# Id of the mission being played.
+[[state]]
+name = "mission"
+index = 26
+
+# The mission's goal, and how far along it is, in the same unit.
+[[state]]
+name = "goal"
+index = 27
+
+[[state]]
+name = "progress"
+index = 28
+
+# 1 once the mission's goal is met. The run stops there.
+[[state]]
+name = "won"
+index = 29
