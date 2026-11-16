@@ -14,7 +14,8 @@ const PLAY_MS = 3000;
 const TIMEOUT_MS = 20000;
 
 const server = await serve(0);
-const url = `http://localhost:${server.address().port}/`;
+// The server listens on 127.0.0.1 only; "localhost" can resolve to ::1 first.
+const url = `http://127.0.0.1:${server.address().port}/`;
 const browser = await chromium.launch({ args: ['--enable-unsafe-webgpu'] });
 const problems = [];
 let consoleErrors = [];
