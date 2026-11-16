@@ -105,6 +105,10 @@ impl Game {
     /// The exit: a gold ring on the ground that swells in two poses.
     pub(crate) fn escape_draw(&mut self) {
         let (x, y) = (self.escape.x, self.escape.y);
+        // The host draws the arrow to the exit while it is off screen.
+        if (x - self.cam.0).abs() > self.view_w || (y - self.cam.1).abs() > self.view_h {
+            self.point(x, y);
+        }
         let pose = (self.anim * 3.0).floor() as i32 & 1;
         let swell = if pose == 0 { 1.0 } else { 1.12 };
         let gold = [0.85, 0.72, 0.30];
@@ -318,6 +322,26 @@ mod tests {
             // Within the cone (a little slack for the rounding of the angle).
             assert!((ex * fx + ey * fy) / ed > fmath::cos(AHEAD_CONE) - 0.01, "enemy off to the side");
         }
+    }
+
+    #[test]
+    fn the_exit_is_pointed_at_with_its_distance_while_off_screen() {
+        let mut game = start(2);
+        game.update(crate::game::TICK);
+        assert_eq!(game.pointers.len(), 1);
+        let p = game.pointers[0];
+        assert_eq!((p[0], p[1]), (game.escape.x, game.escape.y));
+        assert!((p[2] - game.escape.dist(game.player.x, game.player.y)).abs() < 0.01);
+        // On screen, the arrow and its label are gone.
+        game.player.x = game.escape.x - 100.0;
+        game.player.y = game.escape.y;
+        game.update(crate::game::TICK);
+        assert!(game.pointers.is_empty());
+        // Other missions point at nothing here.
+        let mut other = Game::new(2);
+        other.start(M_SURVIVE);
+        other.update(crate::game::TICK);
+        assert!(other.pointers.is_empty());
     }
 
     #[test]

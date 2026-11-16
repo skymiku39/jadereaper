@@ -140,6 +140,18 @@ pub extern "C" fn jr_event_count() -> u32 {
     g().events.len() as u32
 }
 
+/// What this frame's edge-of-screen markers point at: `jr_pointer_count()` x 4
+/// floats `[x, y, distance from the player, 0]` in world units.
+#[no_mangle]
+pub extern "C" fn jr_pointers_ptr() -> *const f32 {
+    g().pointers.as_ptr() as *const f32
+}
+
+#[no_mangle]
+pub extern "C" fn jr_pointer_count() -> u32 {
+    g().pointers.len() as u32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

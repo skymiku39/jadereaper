@@ -81,6 +81,36 @@ export function createUI({ onAction }) {
     set('exitMarker', 'transform', `translate(-50%, -50%) rotate(${Math.atan2(exit.dy, exit.dx).toFixed(3)}rad)`);
   }
 
+  /**
+   * A tag with the distance beside each edge-of-screen marker. `list` holds, per marker, where the
+   * thing it points at is from the screen centre (`dx`, `dy`) and from the player (`dist`), in world
+   * units; `view` is the visible area in the same units. A tag sits on the line from the centre to
+   * the thing, further in than the marker.
+   */
+  function pointers(list, view) {
+    const box = $('pointerTags');
+    while (box.children.length < list.length) {
+      const tag = document.createElement('div');
+      tag.className = 'pointer-tag';
+      box.append(tag);
+    }
+    for (let i = 0; i < box.children.length; i++) {
+      const tag = box.children[i];
+      const p = list[i];
+      tag.hidden = !p;
+      if (!p) continue;
+      // World units from the screen edge. The markers sit 36 to 52 in; the top is kept clear of the HUD.
+      const inset = 100;
+      const hw = Math.max(1, view.w / 2 - inset);
+      const hh = Math.max(1, view.h / 2 - (p.dy < 0 ? inset + 50 : inset));
+      const k = Math.min(1, hw / Math.max(Math.abs(p.dx), 0.001), hh / Math.max(Math.abs(p.dy), 0.001));
+      tag.style.left = `${((0.5 + (p.dx * k) / view.w) * 100).toFixed(2)}%`;
+      tag.style.top = `${((0.5 + (p.dy * k) / view.h) * 100).toFixed(2)}%`;
+      const text = String(Math.round(p.dist / 10) * 10);
+      if (tag.textContent !== text) tag.textContent = text;
+    }
+  }
+
   /** Draw the HUD. The values after `progress` belong to single missions and are ignored in the others. */
   function hud({
     hp, maxHp, xp, xpNext, level, time, kills, enemies, upgrades, mission, goal, progress,
@@ -336,7 +366,7 @@ export function createUI({ onAction }) {
   }
 
   return {
-    show, navigate, confirm, hud, showHud, levelUp, gameOver, missionWon, records, setup, settings, error,
+    show, navigate, confirm, hud, pointers, showHud, levelUp, gameOver, missionWon, records, setup, settings, error,
     get screen() { return current; },
     get locked() { return performance.now() < lockedUntil; },
   };

@@ -512,6 +512,7 @@ impl Game {
         if dx.abs() < self.view_w - 20.0 && dy.abs() < self.view_h - 20.0 {
             return;
         }
+        self.point(cx + dx, cy + dy + 40.0);
         let m = 44.0;
         let kx = (self.view_w - m) / dx.abs().max(0.001);
         let ky = (self.view_h - m) / dy.abs().max(0.001);

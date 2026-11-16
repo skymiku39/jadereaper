@@ -310,6 +310,7 @@ impl Game {
         if rx.abs() < vw - 20.0 && ry.abs() < vh - 20.0 {
             return;
         }
+        self.point(tx, ty);
         let ky = if ry < 0.0 { vh - 96.0 } else { vh - 44.0 };
         let k = ((vw - 44.0) / rx.abs().max(0.001)).min(ky / ry.abs().max(0.001)).min(1.0);
         let (mx, my) = (self.cam.0 + rx * k, self.cam.1 + ry * k);
