@@ -91,7 +91,7 @@ fn duplicate_part_id_is_rejected() {
 fn duplicate_names_are_rejected() {
     assert_error(&errors_after("name = \"wisp\"", "name = \"blot\""), "duplicate part name `blot`");
     assert_error(&errors_after("name = \"mending\"", "name = \"haste\""), "duplicate upgrade name `haste`");
-    assert_error(&errors_after("name = \"kills\"", "name = \"hp\""), "duplicate state name `hp`");
+    assert_error(&errors_after("name = \"kills\"\nindex", "name = \"hp\"\nindex"), "duplicate state name `hp`");
 }
 
 #[test]

@@ -226,7 +226,7 @@ pub struct Event {
 pub struct Mission {
     pub id: u32,
     pub name: String,
-    /// What the mission asks for, in its own unit (seconds for `survive`). 0 for none.
+    /// What the mission asks for, in its own unit (seconds for `survive`, enemies for `kills`). 0 for none.
     pub goal: u32,
 }
 
@@ -588,7 +588,7 @@ pub fn render_rust(c: &Content) -> String {
         writeln!(o, "pub const EV_{}: f32 = {}.0;", upper(&e.name), e.id).unwrap();
     }
 
-    o.push_str("\n// Mission ids, and what each one asks for (seconds for `survive`).\n");
+    o.push_str("\n// Mission ids, and what each one asks for (seconds for `survive`, enemies for `kills`).\n");
     for m in &c.missions {
         writeln!(o, "pub const M_{}: usize = {};", upper(&m.name), m.id).unwrap();
     }
@@ -640,7 +640,9 @@ pub fn render_js(c: &Content) -> String {
     }
     o.push_str("};\n\n");
 
-    o.push_str("/** Missions, indexed by id. `goal` is what the mission asks for (seconds for survive).\n");
+    o.push_str(
+        "/** Missions, indexed by id. `goal` is what the mission asks for (seconds for survive, enemies for kills).\n",
+    );
     o.push_str(" * Names and descriptions are in src/i18n.js as mission.<name>.name and .desc. */\n");
     o.push_str("export const MISSIONS = [\n");
     for m in &c.missions {
