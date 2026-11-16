@@ -92,6 +92,10 @@ pub struct Game {
     pub running: bool,
     pub choosing: bool,
     pub over: bool,
+    /// The mission being played, an `M_*` id.
+    pub mission: usize,
+    /// True once the mission's goal is met. The run stops there.
+    pub won: bool,
     /// Run time in seconds. Stops while choosing an upgrade.
     pub time: f32,
     /// Animation clock. Keeps going on the title and upgrade screens.
@@ -181,6 +185,8 @@ impl Game {
             running: false,
             choosing: false,
             over: false,
+            mission: M_ENDLESS,
+            won: false,
             time: 0.0,
             anim: 0.0,
             ticks: 0,
@@ -230,6 +236,33 @@ impl Game {
         }
     }
 
+    /// Start a run of the given mission. An unknown id plays endless.
+    pub fn start(&mut self, mission: usize) {
+        self.mission = if mission < N_MISSIONS { mission } else { M_ENDLESS };
+        self.running = true;
+    }
+
+    /// What the mission asks for, in its own unit. 0 for none.
+    pub fn goal(&self) -> f32 {
+        MISSION_GOAL[self.mission]
+    }
+
+    /// How far along the mission is, in the same unit as the goal.
+    pub fn progress(&self) -> f32 {
+        match self.mission {
+            M_SURVIVE => self.time.min(self.goal()),
+            _ => 0.0,
+        }
+    }
+
+    /// The win rule of each mission. Endless has none.
+    fn mission_won(&self) -> bool {
+        match self.mission {
+            M_SURVIVE => self.time >= self.goal(),
+            _ => false,
+        }
+    }
+
     pub fn set_view(&mut self, half_w: f32, half_h: f32) {
         self.view_w = half_w.max(100.0);
         self.view_h = half_h.max(100.0);
@@ -261,7 +294,7 @@ impl Game {
     pub fn tick(&mut self) {
         self.ticks = self.ticks.wrapping_add(1);
         self.anim += TICK;
-        if self.running && !self.choosing && !self.over {
+        if self.running && !self.choosing && !self.over && !self.won {
             self.step(TICK);
         }
         self.shake = (self.shake - TICK * 3.0).max(0.0);
@@ -288,6 +321,8 @@ impl Game {
         mix(self.time.to_bits());
         mix(self.kills);
         mix(self.pending);
+        mix(self.mission as u32);
+        mix(self.won as u32);
         let p = &self.player;
         for v in [p.x, p.y, p.hp, p.max_hp, p.xp, p.xp_next] {
             mix(v.to_bits());
@@ -375,7 +410,12 @@ impl Game {
             self.player.xp_next = xp_for(self.player.level);
             self.pending += 1;
         }
-        if self.pending > 0 && !self.choosing && !self.over {
+        // Dying on the same step as meeting the goal counts as dying.
+        if !self.over && self.mission_won() {
+            self.won = true;
+            self.event(EV_WIN, self.player.x, self.player.y, 0.0);
+        }
+        if self.pending > 0 && !self.choosing && !self.over && !self.won {
             self.offer();
         }
     }
@@ -1153,6 +1193,7 @@ impl Game {
     /// HUD state read by the host. The layout is the `[[state]]` list in
     /// `content/game.toml`.
     fn write_state(&mut self) {
+        let (goal, progress) = (self.goal(), self.progress());
         let p = &self.player;
         let s = &mut self.state;
         s[S_HP] = p.hp;
@@ -1171,6 +1212,10 @@ impl Game {
         s[S_CAM_Y] = self.cam.1;
         s[S_ENEMIES] = self.enemies.len() as f32;
         s[S_RUNNING] = self.running as u8 as f32;
+        s[S_MISSION] = self.mission as f32;
+        s[S_GOAL] = goal;
+        s[S_PROGRESS] = progress;
+        s[S_WON] = self.won as u8 as f32;
         for id in 0..N_UPGRADES {
             s[S_UPGRADE0 + id] = self.up[id] as f32;
         }

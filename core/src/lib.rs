@@ -30,11 +30,11 @@ pub extern "C" fn jr_reset(seed: u32) {
     g().set_view(w, h);
 }
 
-/// Start a new run.
+/// Start a new run of a mission (an id from `[[mission]]` in the content file).
 #[no_mangle]
-pub extern "C" fn jr_start(seed: u32) {
+pub extern "C" fn jr_start(seed: u32, mission: u32) {
     jr_reset(seed);
-    g().running = true;
+    g().start(mission as usize);
 }
 
 /// Visible area in world units (full width and height).
@@ -188,6 +188,79 @@ mod tests {
         assert_eq!(game.ticks, 1);
         game.update(0.0);
         assert_eq!(game.ticks, 1);
+    }
+
+    /// Play until the run ends or `seconds` pass, keeping the player alive.
+    fn play_unhurt(game: &mut Game, seconds: u32) {
+        for _ in 0..(60 * seconds) {
+            game.player.hp = game.player.max_hp;
+            // `tick` does not clear the event list the way `update` does.
+            game.events.clear();
+            game.tick();
+            if game.choosing {
+                game.choose(0);
+            }
+            if game.won || game.over {
+                break;
+            }
+        }
+    }
+
+    #[test]
+    fn survive_mission_is_won_at_its_goal() {
+        let mut game = Game::new(11);
+        game.start(M_SURVIVE);
+        let goal = game.goal();
+        assert!(goal > 0.0);
+        play_unhurt(&mut game, goal as u32 - 1);
+        assert!(!game.won, "won early at {}", game.time);
+        play_unhurt(&mut game, 2);
+        assert!(game.won && !game.over);
+        assert!(game.time >= goal && game.time < goal + 0.1, "won at {}", game.time);
+        assert!(game.events.iter().any(|e| e[0] == EV_WIN));
+
+        // The run is frozen once won.
+        let (time, ticks) = (game.time, game.ticks);
+        game.update(game::TICK);
+        assert_eq!(game.time, time);
+        assert_eq!(game.ticks, ticks + 1);
+        assert_eq!(game.state[S_WON], 1.0);
+        assert_eq!(game.state[S_MISSION], M_SURVIVE as f32);
+        assert_eq!(game.state[S_GOAL], goal);
+        assert_eq!(game.state[S_PROGRESS], goal);
+    }
+
+    #[test]
+    fn survive_mission_is_lost_on_death() {
+        let mut game = Game::new(3);
+        game.start(M_SURVIVE);
+        for _ in 0..(60 * 300) {
+            game.tick();
+            if game.choosing {
+                game.choose(0);
+            }
+            if game.over {
+                break;
+            }
+        }
+        assert!(game.over && !game.won);
+    }
+
+    #[test]
+    fn endless_mission_is_never_won() {
+        let mut game = Game::new(11);
+        game.start(M_ENDLESS);
+        play_unhurt(&mut game, MISSION_GOAL[M_SURVIVE] as u32 + 30);
+        assert!(!game.won);
+        assert_eq!(game.state[S_GOAL], 0.0);
+    }
+
+    #[test]
+    fn unknown_mission_plays_endless() {
+        let mut game = Game::new(1);
+        game.start(N_MISSIONS + 3);
+        assert_eq!(game.mission, M_ENDLESS);
+        assert!(game.running);
     }
 
     #[test]
