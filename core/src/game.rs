@@ -103,6 +103,8 @@ pub struct Game {
     /// The run's tunes, indexed by `T_*`: the defaults, unless the setup screen
     /// changed some for a test run. Set before `start` and fixed after it.
     pub tune: [f32; N_TUNES],
+    /// The wait before the mission, while the player has yet to accept it.
+    pub accept: crate::accept::Accept,
     /// True once the mission's goal is met. The run stops there.
     pub won: bool,
     /// Run time in seconds. Stops while choosing an upgrade.
@@ -217,6 +219,7 @@ impl Game {
             over: false,
             mission: M_ENDLESS,
             tune: TUNE_DEFAULT,
+            accept: crate::accept::Accept::default(),
             won: false,
             time: 0.0,
             anim: 0.0,
@@ -389,7 +392,11 @@ impl Game {
         self.ticks = self.ticks.wrapping_add(1);
         self.anim += TICK;
         if self.running && !self.choosing && !self.over && !self.won {
-            self.step(TICK);
+            if self.accept.active {
+                self.accept_step(TICK);
+            } else {
+                self.step(TICK);
+            }
         }
         self.shake = (self.shake - TICK * 3.0).max(0.0);
     }
@@ -483,10 +490,8 @@ impl Game {
 
     // ---------------------------------------------------------------- step
 
-    fn step(&mut self, dt: f32) {
-        self.time += dt;
-
-        // Player movement.
+    /// Move the player by the input, and count down his timers.
+    pub(crate) fn walk(&mut self, dt: f32) {
         let (mut mx, mut my) = self.input;
         if !mx.is_finite() || !my.is_finite() {
             mx = 0.0;
@@ -514,6 +519,11 @@ impl Game {
         p.iframe = (p.iframe - dt).max(0.0);
         p.attack = (p.attack - dt).max(0.0);
         p.hp = (p.hp + regen * dt).min(p.max_hp);
+    }
+
+    fn step(&mut self, dt: f32) {
+        self.time += dt;
+        self.walk(dt);
 
         let moved = self.retrieval.step(self.player.x, self.player.y);
         if moved.picked > 0 {
@@ -1222,6 +1232,7 @@ impl Game {
         self.pointers.clear();
         self.draw_ground();
         self.draw_hold_ground();
+        self.accept_draw_ground();
         if self.mission == M_ESCAPE {
             self.escape_draw();
         }
@@ -1311,6 +1322,7 @@ impl Game {
         self.pursuit_draw_markers();
         self.draw_escort_markers();
         self.draw_hold_marker();
+        self.accept_draw_marker();
         // The host shows how far away each marked thing is.
         let (px, py) = (self.player.x, self.player.y);
         for p in self.pointers.iter_mut() {
@@ -1492,6 +1504,9 @@ impl Game {
         s[S_EXIT_Y] = self.escape.y;
         s[S_EXIT_DIST] = self.escape.dist(p.x, p.y);
         s[S_BOSS_WAIT] = boss_wait;
+        s[S_ACCEPTING] = self.accept.active as u8 as f32;
+        s[S_ACCEPT_HELD] = if self.accept.active { self.accept.held } else { 0.0 };
+        s[S_ACCEPT_NEED] = if self.accept.active { self.accept.need } else { 0.0 };
         for id in 0..N_UPGRADES {
             s[S_UPGRADE0 + id] = self.up[id] as f32;
         }

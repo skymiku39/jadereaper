@@ -722,6 +722,27 @@ min = 60
 max = 1200
 step = 60
 
+# Accepting a mission (core/src/accept.rs): the player starts this far from
+# the spot where the mission is accepted.
+[[tune]]
+id = 42
+name = "accept_dist"
+mission = "any"
+default = 600
+min = 0
+max = 3000
+step = 100
+
+# Seconds to stand on that spot before the mission starts. 0 starts it at once.
+[[tune]]
+id = 43
+name = "accept_time"
+mission = "any"
+default = 3
+min = 0
+max = 10
+step = 1
+
 # ---------------------------------------------------------------- state
 # Fields of the HUD state buffer written by Game::write_state. `index` is the
 # first float. A field with `len` is a run of floats; its constant gets a 0
@@ -874,4 +895,16 @@ index = 54
 name = "boss_wait"
 index = 56
 
-# Boss mission: seconds until the boss arrives, 0 once it is here.
+# Accepting a mission: 1 while the run waits for the player to accept, the
+# seconds he has stood on the spot, and the seconds he has to.
+[[state]]
+name = "accepting"
+index = 40
+
+[[state]]
+name = "accept_held"
+index = 41
+
+[[state]]
+name = "accept_need"
+index = 42

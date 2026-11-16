@@ -132,6 +132,8 @@ export const TUNES = [
   { id: 39, name: 'vendetta_dist_min', mission: 'vendetta', def: 16000, min: 2000, max: 30000, step: 2000 },
   { id: 40, name: 'vendetta_dist_max', mission: 'vendetta', def: 20000, min: 2000, max: 30000, step: 2000 },
   { id: 41, name: 'vendetta_group_hp', mission: 'vendetta', def: 240, min: 60, max: 1200, step: 60 },
+  { id: 42, name: 'accept_dist', mission: 'any', def: 600, min: 0, max: 3000, step: 100 },
+  { id: 43, name: 'accept_time', mission: 'any', def: 3, min: 0, max: 10, step: 1 },
 ];
 
 /** Size of the state array written by the core, in floats. */
@@ -161,6 +163,9 @@ export const STATE = {
   ESCAPE: 32,
   ESCAPED: 33,
   CARRIED: 36,
+  ACCEPTING: 40,
+  ACCEPT_HELD: 41,
+  ACCEPT_NEED: 42,
   ESCORT_HP: 44,
   ESCORT_MAX_HP: 45,
   ESCORT_FELL: 46,

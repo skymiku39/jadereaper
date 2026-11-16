@@ -114,7 +114,7 @@ export function createUI({ onAction }) {
   /** Draw the HUD. The values after `progress` belong to single missions and are ignored in the others. */
   function hud({
     hp, maxHp, xp, xpNext, level, time, kills, enemies, upgrades, mission, goal, progress,
-    carried, escape, escortHp, escortMaxHp, pointHp, pointMax, exit, bossWait,
+    carried, escape, escortHp, escortMaxHp, pointHp, pointMax, exit, bossWait, accept,
   }) {
     set('hpFill', 'width', `${Math.max(0, Math.min(100, (hp / maxHp) * 100)).toFixed(1)}%`);
     set('hpText', 'text', String(Math.ceil(hp)));
@@ -151,6 +151,10 @@ export function createUI({ onAction }) {
       label = t('hud.bossIn', { time: formatTime(Math.ceil(bossWait)) });
     } else if (boss) {
       label = t('hud.boss', { hp: Math.max(0, Math.ceil(goal - progress)) });
+    }
+    // Before the mission is accepted, the label says what to do: go to the circle, then stay in it.
+    if (accept) {
+      label = accept.held > 0 ? t('hud.accept', { n: Math.ceil(accept.need - accept.held) }) : t('hud.acceptGo');
     }
     set('goalText', 'text', label);
     set('goalText', 'display', label ? '' : 'none');
