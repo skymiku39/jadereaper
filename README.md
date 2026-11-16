@@ -52,7 +52,7 @@ The UI is HTML and CSS over the canvas: torn-edge paper sheets, tags and cards, 
 
 | Path | What it is |
 | --- | --- |
-| `content/game.toml` | Part, upgrade and event ids, upgrade max levels and glyphs, state indices, ink colour |
+| `content/game.toml` | Part, upgrade, event and mission ids, upgrade max levels and glyphs, mission goals, state indices, ink colour |
 | `core/` | Rust simulation. No dependencies, no bindgen. |
 | `core/src/defs.rs` | Instance format, enemy table, re-exports the generated ids |
 | `core/src/generated.rs` | Generated from `content/game.toml` |
@@ -94,7 +94,7 @@ Each frame the host calls `jr_input`, then `jr_update(dt)`. The core turns that 
 - State: 32 floats for the HUD (health, experience, time, offered upgrades and so on). Indices are the `[[state]]` entries in `content/game.toml`, generated as `STATE` in JavaScript and `S_*` in Rust.
 - Events: 4 floats each (`type, x, y, value`), used for sound.
 
-When the core sets the "choosing" flag the host shows the upgrade cards and answers with `jr_choose(slot)`.
+When the core sets the "choosing" flag the host shows the upgrade cards and answers with `jr_choose(slot)`. A run starts with `jr_start(seed, mission)`; the core sets "won" when the mission's goal is met and "over" when the player dies, and stops the run either way.
 
 ## Build the core
 
@@ -117,6 +117,7 @@ cargo test --release --manifest-path core/Cargo.toml
 Ids live in one place, `content/game.toml`. After editing it, run `./build.sh` (or just the generator, `cargo run --release --manifest-path tools/gen/Cargo.toml`) and commit the content file together with `core/src/generated.rs`, `src/generated.js` and `src/shader.wgsl`. A part named `player_body` becomes `P_PLAYER_BODY` in Rust, `PART_PLAYER_BODY` in the shader and `PART_IDS.player_body` in JavaScript.
 
 - New enemy: add a row to `KINDS` in `core/src/defs.rs` and a spawn rule in `Game::spawn`.
+- New mission: add a `[[mission]]` entry (next id, name, goal) to `content/game.toml`, its win rule in `Game::mission_won` and its progress in `Game::progress` in `core/src/game.rs`, and its text as `mission.<name>.name`, `.desc` and `.hud` in every language in `src/i18n.js`. The title screen builds its button from the generated list.
 - New upgrade: add an `[[upgrade]]` entry (next id, name, max level, glyph) to `content/game.toml`, its effect in `Game::weapons` or where the stat is read, and its card text as `upgrade.<id>.name` and `upgrade.<id>.desc` in every language in `src/i18n.js`.
 - New text: add a key to every language in `src/i18n.js`, then use `t(key)` in code or a `data-i18n` attribute in `index.html`. Missing keys fall back to English.
 - New language: add its code to `LANGS` and a table to `STRINGS` in `src/i18n.js`, and to start new players in it, set `DEFAULT_LANG`.
@@ -127,8 +128,9 @@ Ids live in one place, `content/game.toml`. After editing it, run `./build.sh` (
 - Four enemy kinds (blot, wisp, brute, elite every 90 seconds) with time-scaled health and spawn rate, capped at 500 on screen
 - Four weapons (scythe, talisman, jade beads, spirit pulse) and six passive upgrades, with level-up choices
 - Experience gems, health drops, pickup magnet, knockback, invulnerability frames, camera shake
-- Title, settings, level-up, pause and game-over screens, playable by keyboard or gamepad
-- Saved best time, kills, level, sound and language settings
+- Missions picked on the title screen: "Hold Out" (stay alive for five minutes) and endless
+- Title, settings, level-up, pause, game-over and mission-complete screens, playable by keyboard or gamepad
+- Saved best time, kills and level for endless, tries and wins per mission, sound and language settings
 - Traditional Chinese (the default) and English text, switchable in settings
 
 Not included yet: touch controls, damage numbers, music, meta progression between runs, and a WebGL fallback for browsers without WebGPU.
