@@ -1,0 +1,4 @@
+# The core is written in a compact style; these two settings keep rustfmt
+# close to it.
+max_width = 120
+use_small_heuristics = "Max"

@@ -36,9 +36,8 @@ fn read(root: &Path, rel: &str) -> Result<String, String> {
 /// Returns how many files differ from what was generated.
 fn run(root: &Path, check: bool) -> Result<usize, String> {
     let src = read(root, content::CONTENT_PATH)?;
-    let c = content::load(&src).map_err(|errs| {
-        format!("{} has problems:\n  {}", content::CONTENT_PATH, errs.join("\n  "))
-    })?;
+    let c = content::load(&src)
+        .map_err(|errs| format!("{} has problems:\n  {}", content::CONTENT_PATH, errs.join("\n  ")))?;
     let shader = read(root, content::WGSL_PATH)?;
     let outputs = [
         (content::RUST_OUT, content::render_rust(&c)),

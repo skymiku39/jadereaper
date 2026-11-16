@@ -16,9 +16,7 @@ fn root() -> PathBuf {
 /// A repository file, with line endings normalised to LF.
 fn read(rel: &str) -> String {
     let path = root().join(rel);
-    std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("{}: {e}", path.display()))
-        .replace("\r\n", "\n")
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display())).replace("\r\n", "\n")
 }
 
 fn real() -> content::Content {
@@ -154,16 +152,30 @@ fn js_sources() -> Vec<(String, String)> {
         .filter(|n| n.ends_with(".js") && n != "generated.js")
         .collect();
     files.sort();
-    files.into_iter().map(|n| { let t = read(&format!("src/{n}")); (n, t) }).collect()
+    files
+        .into_iter()
+        .map(|n| {
+            let t = read(&format!("src/{n}"));
+            (n, t)
+        })
+        .collect()
 }
 
 #[test]
 fn js_uses_only_defined_state_and_event_names() {
     let c = real();
-    let state: Vec<String> = c.state.iter().map(|s| {
-        let n = s.name.to_ascii_uppercase();
-        if s.len.is_some() { format!("{n}0") } else { n }
-    }).collect();
+    let state: Vec<String> = c
+        .state
+        .iter()
+        .map(|s| {
+            let n = s.name.to_ascii_uppercase();
+            if s.len.is_some() {
+                format!("{n}0")
+            } else {
+                n
+            }
+        })
+        .collect();
     let events: Vec<String> = c.events.iter().map(|e| e.name.to_ascii_uppercase()).collect();
     let mut seen = 0;
     for (file, text) in js_sources() {
