@@ -11,11 +11,11 @@ The backbone is about 3,000 lines: a Rust simulation compiled to WebAssembly (`c
 Known weaknesses, which the steps below address:
 
 - **Content is hardcoded.** All four weapons live in one `Game::weapons` function in `core/src/game.rs`, each with its own timer field on `Game`. Adding a weapon means editing the struct, that function, the draw code and `src/data.js`.
-- **Ids are mirrored by hand.** Part ids and upgrade ids are repeated in `core/src/defs.rs`, `src/data.js` and `src/shader.wgsl`. Nothing checks they agree, so a mismatch fails silently as a wrong shape or wrong card.
+- **Only ids are data so far.** Part, upgrade and event ids and the state indices are generated from `content/game.toml` (the first slice of step 1, done). Enemy numbers, weapon behaviour and puppet rigs are still code.
 - **Puppets are posed in code.** `draw_player` and `draw_enemy` hardcode part offsets, tilts and sizes. A custom image can replace a part's picture but not how a character is assembled or how it moves.
 - **The time step is variable.** `jr_update(dt)` advances by the real frame time, so the same seed and inputs do not replay the same run. This blocks replays and makes balance testing noisy.
 - **Weapon hits are brute force.** The spatial grid is only used for enemy separation; every weapon loops over every enemy. Fine at the 500-enemy cap, not beyond.
-- **Nothing is automated.** The checked-in `wasm/jadereaper_core.wasm` can drift from the Rust source, there are no JavaScript tests, and nothing deploys the game.
+- **Little is automated.** CI deploys the game, checks the fonts and smoke-tests the page, but it does not run the core tests, and the checked-in `wasm/jadereaper_core.wasm` can still drift from the Rust source.
 - **A run has no shape.** One endless arena, no win condition, the elite is just a big brute with no attacks, and nothing carries over between runs.
 - **Balance is untested by people.** Numbers were tuned only against a bot that walks in circles, which survived about 2 minutes 20 seconds.
 
@@ -31,7 +31,16 @@ Known weaknesses, which the steps below address:
 | 6 | Touch controls and a WebGL2 fallback | Medium to high for reach | Medium to high | Nothing |
 | 7 | Scale to thousands of enemies | Low to medium for now | Medium | 1 |
 
-Suggested order: 1, then 2 and 3 in parallel (they touch different files), then 4. Slot 5 in whenever a remote exists. Leave 6 and 7 until the target devices and horde size are decided.
+The ranks above are by impact for the cost. The working order, agreed with the maintainer on 2026-11-16, puts playable mission prototypes early:
+
+1. The rest of step 5: core tests, the wasm drift check, format and lint checks in CI.
+2. Step 3: fixed time step, replays and the balance tool, so later rewrites can be checked against recorded runs.
+3. The mission framework from step 4: a mission has an objective, a win condition and a result screen, and can be picked from the title screen. "Survive a time" is the first mission.
+4. One or two more mission prototypes from the list in the design document, section 4.2.1.
+5. Step 1: the data-driven rewrite, then martial arts × magic elements and reactions.
+6. The remaining mission prototypes, then step 2 (game feel) and the rest of step 4.
+
+Leave 6 and 7 until the target devices and horde size are decided.
 
 ## 1. Data-driven content and puppet rigs
 

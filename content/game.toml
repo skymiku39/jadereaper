@@ -2,7 +2,7 @@
 # the JavaScript host and the shader.
 #
 # After editing, run ./build.sh (or only the generator:
-#   cargo run --release --manifest-path core/Cargo.toml --bin gen)
+#   cargo run --release --manifest-path tools/gen/Cargo.toml)
 # and commit the generated files with this one:
 #   core/src/generated.rs, src/generated.js and the block in src/shader.wgsl.
 #
