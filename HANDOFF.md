@@ -11,14 +11,15 @@ Environment: `gh` is not installed inside WSL, so use the Windows one with `--re
 ### feat/mission-survive
 
 - Task: item 1 of `Ranked work`: the mission framework and the first mission, "survive a time". The user asked on 2026-11-16 to do this before replays and the balance tool.
-- PR: none. Not pushed.
+- PR: https://github.com/skymiku39/jadereaper/pull/4, opened on 2026-11-16 at the user's request. Not merged.
 - Code checkpoint: see `git log`; the branch is cut from `main` at 802359b (PR 3, the fixed time step, merged there).
 - Changed: `content/game.toml` gains a `[[mission]]` table (`endless`, and `survive` with a goal of 300 s), the event `win` and the state fields `mission`, `goal`, `progress` and `won`; `tools/gen` reads the table and writes `M_*`, `N_MISSIONS` and `MISSION_GOAL` for Rust and `MISSIONS` and `MISSION_IDS` for JavaScript. In the core, `jr_start(seed, mission)` starts a mission, `Game::mission_won` holds each mission's win rule and the run stops when `won` is set. In the host, the title screen builds one start button per mission, the HUD counts down in a timed mission, a new "mission complete" screen shows the result, and the save keeps tries and wins per mission (endless keeps its best time, kills and level). The Chinese fonts were re-subset for the new text.
 - Verification on 2026-11-16 (Rust 1.100.0, Node 24.22.3, Linux x86-64 under WSL): format, clippy, `cargo test` (53 unit tests, 16 content tests), `./build.sh`, `tools/check-fonts.sh`, `npm run determinism` and `npm run smoke` passed. A headless play of the survive mission checked both endings: death shows the game-over screen with the mission named and records a try; with the goal temporarily set to 10 s, the win screen appears at 0:10, a win is saved and the title button then reads "已完成 1 次". Screenshots of the title and win screens were looked at. Not verified: a person playing the full five minutes, the game view itself (headless screenshots show a blank canvas), gamepad navigation of the new buttons, and the English text on screen.
 - Finding for the user: the survive mission can be won by only running away. In a native simulation of 40 seeds, a bot that moves away from nearby enemies and always takes the first card won 40 of 40 at a mean level of 1.4; a bot walking in circles won 0 of 40 and lasted 102 s on average. The arena has no edge and enemies are slower than the player. The mission needs pressure that running cannot escape (a bounded arena, spawns that surround, faster chasers); recorded in `docs/design.md` 4.2.1 as open.
 - Still open from PR 3: the user has not yet said whether the game looks right at the fixed step.
-- Next action: P-20, then the user's call on the finding above, then item 2 of `Ranked work`.
-- Pending: **P-20** push this branch to `origin`, open a PR and merge it once CI passes. Why: pushing and merging need the user's go-ahead.
+- Next action: P-20 (the merge), then the user's call on the finding above, then item 2 of `Ranked work`.
+- Before the push, format, clippy, `cargo test`, `./build.sh` (no committed file changed), `npm run determinism` and `npm run smoke` were run again on the branch tip and passed.
+- Pending: **P-20** merge PR 4 once CI passes. The push and the PR are done (the user said "推送並開 PR" on 2026-11-16); that did not cover the merge. Why: merging needs the user's go-ahead.
 
 ## Ranked work
 
