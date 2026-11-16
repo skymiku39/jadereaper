@@ -15,7 +15,9 @@ Known weaknesses, which the steps below address:
 - **Puppets are posed in code.** `draw_player` and `draw_enemy` hardcode part offsets, tilts and sizes. A custom image can replace a part's picture but not how a character is assembled or how it moves.
 - **Runs cannot be recorded yet.** The core steps at a fixed 60 Hz and plays the same run natively and in wasm (the first slice of step 3, done), but nothing records inputs, plays a replay back or simulates runs in bulk.
 - **Weapon hits are brute force.** The spatial grid is only used for enemy separation; every weapon loops over every enemy. Fine at the 500-enemy cap, not beyond.
-- **A run has little shape.** There is a mission framework with two goal missions (stay alive for five minutes, cut down 1,500 enemies) next to endless, but one open arena, the elite is just a big brute with no attacks, and nothing carries over between runs. A bot that only runs away wins the survive mission every time at level 1, so the mission needs pressure that running cannot escape.
+- **A run has little shape.** There is a mission framework with eleven goal missions next to endless: stay alive for five minutes, cut down 1,500 enemies, and a prototype of each other type in the design document (section 4.2.1). The nine prototypes were tuned against bots only and nobody has played them. It is still one open arena, only the boss mission's boss has attacks, and nothing carries over between runs.
+- **Enemies cannot hold the player.** They never block and are slower than the player, and at most 500 exist. A bot that only runs away wins the survive mission every time at level 1, and a bot that only dodges wins the break-out mission 9 times in 12 and the retrieval mission 7 times in 8. Those missions need pressure that running cannot escape.
+- **Checks do not reach the missions.** The determinism check and the smoke test only play the default run, so no automated check compares native and wasm in the new missions or starts them in a browser.
 - **Balance is untested by people.** Numbers were tuned only against a bot that walks in circles, which survived about 2 minutes 20 seconds.
 
 ## Summary
@@ -35,7 +37,7 @@ The ranks above are by impact for the cost. The working order, agreed with the m
 1. The rest of step 5: core tests, the wasm drift check, format and lint checks in CI.
 2. Step 3: fixed time step, replays and the balance tool, so later rewrites can be checked against recorded runs.
 3. The mission framework from step 4: a mission has an objective, a win condition and a result screen, and can be picked from the title screen. "Survive a time" is the first mission.
-4. One or two more mission prototypes from the list in the design document, section 4.2.1.
+4. Mission prototypes from the list in the design document, section 4.2.1. All of them are built (2026-11-16); what is left is playing them and settling their numbers.
 5. Step 1: the data-driven rewrite, then martial arts × magic elements and reactions.
 6. The remaining mission prototypes, then step 2 (game feel) and the rest of step 4.
 
